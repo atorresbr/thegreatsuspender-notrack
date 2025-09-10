@@ -1625,42 +1625,30 @@ var tgs = (function() {
   }
 
   function addMiscListeners() {
-    //add listener for battery state changes
-    if (navigator.getBattery) {
-      navigator.getBattery().then(function(battery) {
+  //add listener for battery state changes
+  if (navigator.getBattery) {
+    navigator.getBattery().then(function(battery) {
+      _isCharging = battery.charging;
+
+      battery.onchargingchange = function() {
         _isCharging = battery.charging;
-
-        battery.onchargingchange = function() {
-          _isCharging = battery.charging;
-          gsUtils.log('background', `_isCharging: ${_isCharging}`);
-          setIconStatusForActiveTab();
-          //restart timer on all normal tabs
-          //NOTE: some tabs may have been prevented from suspending when computer was charging
-          if (
-            !_isCharging &&
-            gsStorage.getOption(gsStorage.IGNORE_WHEN_CHARGING)
-          ) {
-            resetAutoSuspendTimerForAllTabs();
-          }
-        };
-      });
-    }
-
-    //add listeners for online/offline state changes
-    window.addEventListener('online', function() {
-      gsUtils.log('background', 'Internet is online.');
-      //restart timer on all normal tabs
-      //NOTE: some tabs may have been prevented from suspending when internet was offline
-      if (gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
-        resetAutoSuspendTimerForAllTabs();
-      }
-      setIconStatusForActiveTab();
-    });
-    window.addEventListener('offline', function() {
-      gsUtils.log('background', 'Internet is offline.');
-      setIconStatusForActiveTab();
+        gsUtils.log('background', `_isCharging: ${_isCharging}`);
+        setIconStatusForActiveTab();
+        //restart timer on all normal tabs
+        //NOTE: some tabs may have been prevented from suspending when computer was charging
+        if (
+          !_isCharging &&
+          gsStorage.getOption(gsStorage.IGNORE_WHEN_CHARGING)
+        ) {
+          resetAutoSuspendTimerForAllTabs();
+        }
+      };
     });
   }
+
+  // The online/offline event listeners have been moved to the service worker in gsManifestV3Adapter.js
+  // for compatibility with Manifest V3
+}
 
   function startSessionMetricsJob() {
     gsSession.updateSessionMetrics(true);

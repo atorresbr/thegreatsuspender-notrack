@@ -71,13 +71,19 @@ var gsManifestV3Adapter = (function() {
     // Add online/offline event handlers here at initialization time
     self.addEventListener('online', function() {
       if (typeof tgs !== 'undefined' && tgs.requestLogExceptions) {
-        tgs.requestLogExceptions(false);
+        gsUtils.log('background', 'Internet is online.');
+        //restart timer on all normal tabs
+        if (gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
+          tgs.resetAutoSuspendTimerForAllTabs();
+        }
+        setIconStatusForActiveTab();
       }
     });
     
     self.addEventListener('offline', function() {
       if (typeof tgs !== 'undefined' && tgs.requestLogExceptions) {
-        tgs.requestLogExceptions(true);
+        gsUtils.log('background', 'Internet is offline.');
+        setIconStatusForActiveTab();
       }
     });
   }
