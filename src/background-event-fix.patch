@@ -1,0 +1,31 @@
+--- background.js.original
++++ background.js
+@@ -1647,15 +1647,8 @@
+   function addMiscListeners() {
+     //add listener for battery state changes
+     if (navigator.getBattery) {
+       navigator.getBattery().then(function(battery) {
+         _handleBatteryStateChanged(battery);
+-        battery.addEventListener('chargingchange', function() {
+-          _handleBatteryStateChanged(battery);
+-        });
+-      });
+-    }
+-    //add listeners for online/offline state changes
+-    window.addEventListener('online', function() {
+-      gsUtils.log(BACKGROUNDJS, 'Internet is online.');
++        // Remove chargingchange listener to avoid service worker warnings
+       if (gsSession.isLoggedIn() && gsSession.needToSync()) {
+         gsUtils.log(BACKGROUNDJS, 'Resynchronising due to being back online.');
+         gsSession.performSync();
+@@ -1663,10 +1656,6 @@
+       } else {
+         requestLogExceptions(false);
+       }
+-    });
+-    window.addEventListener('offline', function() {
+-      gsUtils.log(BACKGROUNDJS, 'Internet is offline.');
+-      requestLogExceptions(true);
+     });
+   }
+ };
