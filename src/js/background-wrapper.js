@@ -35,6 +35,12 @@ Object.defineProperty(chrome.extension, 'inIncognitoContext', {
 });
 
 // Now import our compatibility adapter
+// Define gsTabQueue globally before importing any scripts
+self.gsTabQueue = {
+  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },
+  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },
+  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }
+};
 importScripts('gsManifestV3Adapter.js');
 
 console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
@@ -73,6 +79,12 @@ self.gsFavicon = self.gsFavicon || {
 };
 
 // Import all background scripts in the same order as the original manifest
+// Define gsTabQueue globally before importing any scripts
+self.gsTabQueue = {
+  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },
+  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },
+  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }
+};
 importScripts(
   'gsUtils.js',
   'gsChrome.js',

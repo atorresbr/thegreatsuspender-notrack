@@ -1,3 +1,12 @@
+#!/bin/bash
+# Direct fix by completely replacing the problematic file
+JS_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack/src/js"
+
+# Create a backup
+cp "$JS_DIR/gsTabDiscardManager.js" "$JS_DIR/gsTabDiscardManager.js.bak"
+
+# Create a new file with a fixed unqueueTabForDiscard function
+cat > "$JS_DIR/gsTabDiscardManager.js.fixed" << 'EOF'
 /*global gsUtils, gsChrome, gsStorage, gsTabSuspendManager, gsTabQueue */
 'use strict';
 
@@ -103,3 +112,20 @@ var gsTabDiscardManager = (function() {
     },
   };
 })();
+EOF
+
+# Replace the original with the fixed version
+mv "$JS_DIR/gsTabDiscardManager.js.fixed" "$JS_DIR/gsTabDiscardManager.js"
+
+# Also ensure gsTabQueue is defined globally in background-wrapper.js if needed
+sed -i '/importScripts/i \
+// Define gsTabQueue globally before importing any scripts\
+self.gsTabQueue = {\
+  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },\
+  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },\
+  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }\
+};' "$JS_DIR/background-wrapper.js"
+
+echo "Fixed gsTabDiscardManager.js with complete replacement"
+echo "Also added global gsTabQueue definition to background-wrapper.js"
+echo "Reload the extension in Chrome to apply changes"
