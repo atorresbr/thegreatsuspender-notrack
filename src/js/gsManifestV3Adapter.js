@@ -67,48 +67,80 @@ var gsManifestV3Adapter = (function() {
       addEventListener: function() {},
       removeEventListener: function() {}
     };
-    
-    // Add online/offline event handlers here at initialization time
-    self.addEventListener('online', function() {
-      if (typeof tgs !== 'undefined' && tgs.requestLogExceptions) {
-        gsUtils.log('background', 'Internet is online.');
-        //restart timer on all normal tabs
-        if (gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
-          tgs.resetAutoSuspendTimerForAllTabs();
-        }
-        setIconStatusForActiveTab();
-      }
-    });
-    
-    self.addEventListener('offline', function() {
-      if (typeof tgs !== 'undefined' && tgs.requestLogExceptions) {
-        gsUtils.log('background', 'Internet is offline.');
-        setIconStatusForActiveTab();
-      }
-    });
   }
   
-  // Add chrome.extension compatibility
+  // FIX 1: Make sure chrome.extension APIs are patched globally
+  // This ensures chrome.extension.getURL is available everywhere
   if (!chrome.extension) {
     chrome.extension = {};
+  }
+  if (!chrome.extension.getURL) {
     chrome.extension.getURL = chrome.runtime.getURL;
+  }
+  if (!chrome.extension.getBackgroundPage) {
     chrome.extension.getBackgroundPage = function() {
-      console.warn('chrome.extension.getBackgroundPage is not available in Manifest V3');
+    console.warn('chrome.extension.getBackgroundPage is not available in Manifest V3');
       return self;
     };
+  }
+  if (!chrome.extension.getViews) {
     chrome.extension.getViews = function() {
       console.warn('chrome.extension.getViews is not available in Manifest V3');
       return [];
     };
+  }
+  if (!chrome.extension.isAllowedIncognitoAccess) {
     chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
+  }
+  if (!chrome.extension.isAllowedFileSchemeAccess) {
     chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
-    
-    // Add inIncognitoContext property
+  }
+  
+  // Add inIncognitoContext property
+  if (chrome.extension && !('inIncognitoContext' in chrome.extension)) {
     Object.defineProperty(chrome.extension, 'inIncognitoContext', {
       get: function() {
         return false;
       }
     });
+  }
+  
+  // FIX 2: Add chrome.tabs.executeScript compatibility with chrome.scripting
+  // This requires the "scripting" permission in manifest.json
+  if (chrome.tabs && !chrome.tabs.executeScript && chrome.scripting) {
+    chrome.tabs.executeScript = function(tabId, details, callback) {
+      // Handle the case where tabId is actually the details object (optional tabId signature)
+      if (typeof tabId === 'object' && !details) {
+        details = tabId;
+        tabId = null;
+      }
+      
+      const target = {
+        tabId: tabId || chrome.tabs.TAB_ID_NONE
+      };
+      
+      if (details.frameId !== undefined) {
+        target.frameIds = [details.frameId];
+      }
+      
+      const injection = {
+        target: target,
+        func: details.code ? new Function(details.code) : undefined,
+        files: details.file ? [details.file] : undefined,
+        injectImmediately: true
+      };
+      
+      try {
+        chrome.scripting.executeScript(injection, (results) => {
+          if (callback) {
+            callback(results && results.map(r => r.result));
+          }
+        });
+      } catch (error) {
+        console.error('executeScript error:', error);
+        if (callback) callback([]);
+      }
+    };
   }
   
   // Replace browserAction with action

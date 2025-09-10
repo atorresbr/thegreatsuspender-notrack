@@ -14,7 +14,8 @@
     "contextMenus",
     "cookies",
     "favicon",
-    "alarms"
+    "alarms",
+    "scripting"
   ],
   
   "host_permissions": [
