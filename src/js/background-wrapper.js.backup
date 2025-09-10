@@ -1,3 +1,7 @@
+// Auto-patched by fix.sh
+// Load global queue implementation first
+importScripts("globalQueue.js");
+
 /**
  * The Great Suspender - NoTrack
  * Background Service Worker Wrapper for Manifest V3
@@ -12,9 +16,6 @@ self.addEventListener('error', function(event) {
 self.addEventListener('unhandledrejection', function(event) {
   console.error('Unhandled rejection:', event.reason);
 });
-
-// Load registry first to ensure all objects are available
-importScripts('gsRegistry.js');
 
 // Immediate patch for chrome.extension APIs before anything else runs
 if (!chrome.extension) {
@@ -46,15 +47,58 @@ self.document = {
       setAttribute: function() {},
       appendChild: function() {},
       addEventListener: function() {},
-      removeEventListener: function() {},
+      removeEventListener: function() {}
     };
   },
   addEventListener: function() {},
   removeEventListener: function() {}
 };
 
+// Define important stubs before any scripts are loaded
+self.gsTabQueue = {
+  queueTabAsPromise: function(tabId, queueId, callback) { 
+    console.log("gsTabQueue.queueTabAsPromise stub called:", tabId, queueId); 
+    if (typeof callback === 'function') {
+      setTimeout(callback, 0);
+    }
+    return Promise.resolve(); 
+  },
+  unqueueTab: function(tabId, queueId) { 
+    console.log("gsTabQueue.unqueueTab stub called:", tabId, queueId); 
+    return Promise.resolve(); 
+  },
+  requestProcessQueue: function() { 
+    console.log("gsTabQueue.requestProcessQueue stub called"); 
+    return Promise.resolve(); 
+  }
+};
+
+self.gsFavicon = {
+  fetchFaviconDataUrl: function() {
+    return Promise.resolve('');
+  },
+  buildFaviconMetaData: function() {
+    return Promise.resolve({
+      favIconUrl: '',
+      normalisedDataUrl: '',
+      transparentDataUrl: ''
+    });
+  },
+  getFaviconMetaData: function() {
+    return Promise.resolve({
+      favIconUrl: '',
+      normalisedDataUrl: '',
+      transparentDataUrl: ''
+    });
+  },
+  generateFaviconFromUrl: function() {
+    return Promise.resolve('');
+  }
+};
+
 // Now import our compatibility adapter
 importScripts('gsManifestV3Adapter.js');
+importScripts('globalBinding.js');
 
 console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
 console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
@@ -158,6 +202,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
   } else if (alarm.name === 'keepAlive') {
     console.log('Service worker keepAlive ping');
+  }
+});
+
+// Fix 5: Add debug message to check if suspension feature works
+chrome.commands.onCommand.addListener(function(command) {
+  console.log('Command received:', command);
+  if (command === '1-suspend-tab' && typeof tgs !== 'undefined') {
+    console.log('Suspend command received, tgs available:', typeof tgs !== 'undefined');
+    // Additional debug info
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      console.log('Active tab to suspend:', tabs[0]);
+    });
   }
 });
 

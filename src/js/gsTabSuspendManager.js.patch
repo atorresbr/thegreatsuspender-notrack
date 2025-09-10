@@ -1,0 +1,8 @@
+// Find the getQueuedTabDetails function and add defensive checks
+getQueuedTabDetails: function(tabId) {
+  if (!gsTabQueue || typeof gsTabQueue.getQueuedTabDetails !== 'function') {
+    console.warn('gsTabQueue.getQueuedTabDetails not available');
+    return null;
+  }
+  return gsTabQueue.getQueuedTabDetails(tabId, QUEUE_ID);
+},
