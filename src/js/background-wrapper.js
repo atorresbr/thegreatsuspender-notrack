@@ -4,10 +4,32 @@
  */
 'use strict';
 
-// First import our compatibility adapter before ANY other scripts
+// Immediate patch for chrome.extension APIs before anything else runs
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+chrome.extension.getURL = chrome.runtime.getURL;
+chrome.extension.getBackgroundPage = function() {
+  console.log('chrome.extension.getBackgroundPage is not available in Manifest V3');
+  return self;
+};
+chrome.extension.getViews = function() {
+  console.log('chrome.extension.getViews is not available in Manifest V3');
+  return [];
+};
+chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
+chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
+Object.defineProperty(chrome.extension, 'inIncognitoContext', {
+  get: function() {
+    return false;
+  }
+});
+
+// Now import our compatibility adapter
 importScripts('gsManifestV3Adapter.js');
 
 console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
+console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
 
 // Import all background scripts in the same order as the original manifest
 importScripts(
