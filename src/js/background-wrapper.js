@@ -104,6 +104,7 @@ try {
   console.log('Loaded: gsSuspendedTab.js');
   
   importScripts('background.js');
+importScripts('gsDebugHelper.js');
   console.log('Loaded: background.js');
 } catch (err) {
   console.error('Error loading scripts:', err);

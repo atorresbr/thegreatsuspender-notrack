@@ -1,531 +1,370 @@
-// Auto-patched by fix.sh
-// Ensure gsTabQueue is available
-if (typeof gsTabQueue === "undefined") {
-  console.warn("gsTabQueue not found, using fallback");
-  var gsTabQueue = {
-    queueTabAsPromise: function(tabId, queueId, callback) {
-      console.log("Fallback queueTabAsPromise", tabId, queueId);
-      if (typeof callback === "function") setTimeout(callback, 0);
-      return Promise.resolve();
-    },
-    unqueueTab: function() { return Promise.resolve(); },
-    requestProcessQueue: function() { return Promise.resolve(); }
-  };
-}
+/*global gsUtils, gsChrome, gsSession, gsIndexedDb, gsStorage, gsTabQueue, gsTabDiscardManager, gsTabSuspendManager, gsFavicon, tgs, gsMessages */
+'use strict';
 
-/*global chrome, localStorage, tgs, gsStorage, gsSession, gsMessages, gsUtils, gsTabDiscardManager, gsChrome, GsTabQueue, gsSuspendedTab */
-// eslint-disable-next-line no-unused-vars
 var gsTabCheckManager = (function() {
-  'use strict';
-
-  const DEFAULT_CONCURRENT_TAB_CHECKS = 3;
-  const DEFAULT_TAB_CHECK_TIMEOUT = 60 * 1000;
-  const DEFAULT_TAB_CHECK_PROCESSING_DELAY = 500;
-  const DEFAULT_TAB_CHECK_REQUEUE_DELAY = 3 * 1000;
-
+  // Milliseconds to wait before checking if a tab is unresponsive
+  const UNRESPONSIVE_TIMEOUT = 5000;
+  const MAX_FAILED_SUSPENSIONS = 3;
+  const MAX_POPUP_ATTEMPTS = 5;
   const QUEUE_ID = 'checkQueue';
 
-  let _defaultTabTitle;
-  let _tabCheckQueue;
-
-  // NOTE: This mainly checks suspended tabs
-  // For unsuspended tabs, there is no guarantee that the content script will
-  // be responsive, but seeing as the timer is kept by the background script, it
-  // doesn't really matter.
-  // However, when a tab gains focus, there is a check to make sure the content
-  // script is responsive, as we then need to rely on the form input and scroll behaviour.
-  function initAsPromised() {
-    return new Promise(resolve => {
-      const queueProps = {
-        concurrentExecutors: DEFAULT_CONCURRENT_TAB_CHECKS,
-        jobTimeout: DEFAULT_TAB_CHECK_TIMEOUT,
-        processingDelay: DEFAULT_TAB_CHECK_PROCESSING_DELAY,
-        executorFn: handleTabCheck,
-        exceptionFn: handleTabCheckException,
+  // MUST ALWAYS check that gsTabQueue exists before using it
+  function safeTabQueue() {
+    if (!gsTabQueue) {
+      console.warn('gsTabQueue not available');
+      return {
+        queueTabAsPromise: function() {
+          console.warn('Using stub queueTabAsPromise');
+          return Promise.resolve();
+        },
+        unqueueTab: function() {
+          console.warn('Using stub unqueueTab');
+          return Promise.resolve();
+        }
       };
-      _defaultTabTitle = chrome.i18n.getMessage('html_suspended_title');
-      _tabCheckQueue = GsTabQueue(QUEUE_ID, queueProps);
-      gsUtils.log(QUEUE_ID, 'init successful');
-      resolve();
+    }
+    return gsTabQueue;
+  }
+
+  function getQueuedTabDetails(tabId) {
+    return safeTabQueue().getQueuedTabDetails(tabId, QUEUE_ID);
+  }
+
+  function queueTabCheck(tab, preQueue) {
+    preQueue = preQueue || [];
+    queueTabCheckAsPromise(tab, preQueue);
+    return Promise.resolve(preQueue); // Not actually a promise
+  }
+
+  function queueTabCheckAsPromise(tab, preQueue) {
+    preQueue = preQueue || [];
+    return new Promise(function(resolve) {
+      gsUtils.log(tab.id, 'Queuing tab for check.');
+      safeTabQueue()
+        .queueTabAsPromise(tab.id, QUEUE_ID, function() {
+          checkTab(tab, preQueue);
+        })
+        .then(resolve);
     });
   }
 
-  // Suspended tabs that exist or are created before the end of extension
-  // initialisation will need to be initialised by this startup script
-  async function performInitialisationTabChecks(tabs) {
-    // Temporarily change jobTimeout while we are starting up
-    const initJobTimeout = Math.max(
-      tabs.length * 1000,
-      DEFAULT_TAB_CHECK_TIMEOUT
-    );
-    const initProcessingDelay = DEFAULT_TAB_CHECK_PROCESSING_DELAY;
-    const concurrentExecutors = DEFAULT_CONCURRENT_TAB_CHECKS;
-    updateQueueProps(initJobTimeout, initProcessingDelay, concurrentExecutors);
+  function unqueueTabCheck(tabId) {
+    return safeTabQueue().unqueueTab(tabId, QUEUE_ID);
+  }
 
-    const tabCheckPromises = [];
-    for (const tab of tabs) {
-      if (!gsUtils.isSuspendedTab(tab)) {
-        continue;
-      }
-      tabCheckPromises.push(
-        // Set to refetch immediately when being processed on the queue
-        // From experience, even if a tab status is 'complete' now, it
-        // may actually switch to 'loading' in a few seconds even though a
-        // tab reload has not be performed
-        queueTabCheckAsPromise(tab, { resuspend: true }, 1000)
-      );
+  function getUpdatedTab(tab, callback) {
+    if (typeof tab === 'undefined') {
+      callback(null);
+      return;
     }
-
-    const tabUpdatedListener = getTabUpdatedListener();
-    chrome.tabs.onUpdated.addListener(tabUpdatedListener);
-
-    const results = await Promise.all(tabCheckPromises);
-
-    chrome.tabs.onUpdated.removeListener(tabUpdatedListener);
-
-    // Revert timeout
-    updateQueueProps(
-      DEFAULT_TAB_CHECK_TIMEOUT,
-      DEFAULT_TAB_CHECK_PROCESSING_DELAY,
-      DEFAULT_CONCURRENT_TAB_CHECKS
-    );
-
-    return results;
-  }
-
-  function getTabUpdatedListener() {
-    return (tabId, changeInfo, _tab) => {
-      if (
-        !gsUtils.isSuspendedTab(_tab) ||
-        !changeInfo ||
-        !changeInfo.hasOwnProperty('status') ||
-        changeInfo.status !== 'complete'
-      ) {
-        return;
-      }
-      gsUtils.log(_tab.id, 'suspended tab loaded. status === complete');
-      const tabQueueDetails = getQueuedTabCheckDetails(_tab);
-      if (tabQueueDetails) {
-        // If tab is in check queue, then force it to continue processing immediately
-        // This allows us to prevent a timeout -> fetch tab cycle
-        tabQueueDetails.tab = _tab;
-        queueTabCheck(_tab, { refetchTab: false }, 0);
-      }
-    };
-  }
-
-  function updateQueueProps(jobTimeout, processingDelay, concurrentExecutors) {
-    gsUtils.log(
-      QUEUE_ID,
-      `Setting _tabCheckQueue props. jobTimeout: ${jobTimeout}. processingDelay: ${processingDelay}. concurrentExecutors: ${concurrentExecutors}`
-    );
-    _tabCheckQueue.setQueueProperties({
-      jobTimeout,
-      processingDelay,
-      concurrentExecutors,
-    });
-  }
-
-  function queueTabCheck(tab, executionProps, processingDelay) {
-    queueTabCheckAsPromise(tab, executionProps, processingDelay).catch(e => {
-      gsUtils.log(tab.id, QUEUE_ID, e);
-    });
-  }
-
-  function queueTabCheckAsPromise(tab, executionProps, processingDelay) {
-    gsUtils.log(tab.id, QUEUE_ID, `Queueing tab for responsiveness check.`);
-    executionProps = executionProps || {};
-    return _tabCheckQueue.queueTabAsPromise(
-      tab,
-      executionProps,
-      processingDelay
-    );
-  }
-
-  function unqueueTabCheck(tab) {
-    const removed = _tabCheckQueue.unqueueTab(tab);
-    if (removed) {
-      gsUtils.log(tab.id, QUEUE_ID, 'Removed tab from check queue.');
-    }
-  }
-
-  function getQueuedTabCheckDetails(tab) {
-    return _tabCheckQueue.getQueuedTabDetails(tab);
-  }
-
-  async function handleTabCheckException(
-    tab,
-    executionProps,
-    exceptionType,
-    resolve,
-    reject,
-    requeue
-  ) {
-    gsUtils.warning(
-      tab.id,
-      QUEUE_ID,
-      `Failed to initialise tab: ${exceptionType}`
-    );
-    resolve(false);
-  }
-
-  async function handleTabCheck(tab, executionProps, resolve, reject, requeue) {
-    if (gsUtils.isSuspendedTab(tab)) {
-      checkSuspendedTab(tab, executionProps, resolve, reject, requeue);
-    } else if (gsUtils.isNormalTab(tab)) {
-      checkNormalTab(tab, executionProps, resolve, reject, requeue);
-    }
-  }
-
-  async function getUpdatedTab(tab) {
-    let _tab = await gsChrome.tabsGet(tab.id);
-    if (!_tab) {
-      gsUtils.warning(
-        tab.id,
-        QUEUE_ID,
-        `Failed to initialize tab. Tab may have been discarded or removed.`
-      );
-      // If we are still initialising, then check for potential discarded tab matches
-      if (gsSession.isInitialising()) {
-        await queueTabCheckForPotentiallyDiscardedTabs(tab);
-      }
-    }
-    return _tab;
-  }
-
-  async function queueTabCheckForPotentiallyDiscardedTabs(tab) {
-    // NOTE: For some reason querying by url doesn't work here??
-    // TODO: Report chrome bug
-    let tabs = await gsChrome.tabsQuery({
-      discarded: true,
-      windowId: tab.windowId,
-    });
-    tabs = tabs.filter(o => o.url === tab.url);
-    gsUtils.log(
-      tab.id,
-      QUEUE_ID,
-      'Searching for discarded tab matching tab: ',
-      tab
-    );
-    const matchingTab = tabs.find(o => o.index === tab.index);
-    if (matchingTab) {
-      tabs = [matchingTab];
-    }
-    for (const tab of tabs) {
-      await resuspendSuspendedTab(tab);
-      queueTabCheck(tab, { refetchTab: true }, 2000);
-    }
-  }
-
-  async function checkSuspendedTab(
-    tab,
-    executionProps,
-    resolve,
-    reject,
-    requeue
-  ) {
-    if (executionProps.resuspend && !executionProps.resuspended) {
-      await resuspendSuspendedTab(tab);
-      requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, {
-        resuspended: true,
+    if (!gsUtils.isValidTabInfo(tab)) {
+      gsUtils.log(tab.id, 'Tab is invalid. Getting updated tab information.');
+      gsChrome.tabsGet(tab.id).then(function(newTab) {
+        if (!gsUtils.isValidTabInfo(newTab)) {
+          gsUtils.log(tab.id, 'Updated tab is invalid!');
+          callback(null);
+          return;
+        }
+        callback(newTab);
       });
       return;
     }
+    callback(tab);
+  }
 
-    if (executionProps.refetchTab) {
-      gsUtils.log(
-        tab.id,
-        QUEUE_ID,
-        'Tab refetch requested. Getting updated tab..'
-      );
-      tab = await getUpdatedTab(tab);
-      if (!tab) {
-        resolve(gsUtils.STATUS_UNKNOWN);
+  function checkTab(tab, preQueue) {
+    gsUtils.log(tab.id, 'Checking tab state.');
+
+    getUpdatedTab(tab, function(newTab) {
+      if (!newTab) {
+        gsUtils.log(tab.id, 'Tab has been discarded/removed. Aborting tab check.');
         return;
       }
-      gsUtils.log(tab.id, QUEUE_ID, 'Updated tab: ', tab);
+      tab = newTab;
 
-      // Ensure tab is still suspended
-      if (!gsUtils.isSuspendedTab(tab)) {
-        gsUtils.log(
-          tab.id,
-          QUEUE_ID,
-          'Tab is no longer suspended. Aborting check.'
-        );
-        resolve(gsUtils.STATUS_UNKNOWN);
+      // If tab is already suspended
+      if (gsUtils.isSuspendedTab(tab)) {
+        checkSuspendedTab(tab);
         return;
       }
 
-      // If tab has a state of loading, then requeue for checking later
-      if (tab.status === 'loading') {
-        gsUtils.log(tab.id, QUEUE_ID, 'Tab is still loading');
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
+      // If tab is special or already discarded
+      if (gsUtils.isSpecialTab(tab) || gsUtils.isDiscardedTab(tab)) {
+        gsUtils.log(tab.id, 'Tab is special or discarded. Aborting tab check.');
         return;
       }
+
+      // If tab is not responding (in loading state)
+      if (gsUtils.isNormalTab(tab) && tab.status === 'loading') {
+        gsUtils.log(tab.id, 'Tab is still loading');
+        // sometimes tab gets left in 'loading' state
+        // so check for unresponsive tabs here
+        checkForUnresponsiveTab(tab, preQueue);
+        return;
+      }
+
+      // If tab is normal and fully loaded
+      if (gsUtils.isNormalTab(tab) && tab.status === 'complete') {
+        checkNormalTab(tab, preQueue);
+        return;
+      }
+
+      gsUtils.log(tab.id, 'Tab in unknown state. Aborting tab check.');
+    });
+  }
+
+  function checkForUnresponsiveTab(tab, preQueue) {
+    if (preQueue.indexOf('checkForUnresponsiveTab') >= 0) {
+      gsUtils.log(tab.id, 'Already checking this tab for unresponsiveness.');
+      return;
     }
 
-    // Make sure tab is registered as a 'view' of the extension
-    const suspendedView = tgs.getInternalViewByTabId(tab.id);
-    if (!suspendedView) {
+    var tabCheckPromises = [];
+    preQueue.push('checkForUnresponsiveTab');
+    gsUtils.log(tab.id, 'Tab has been in loading state for a while. Attempting tab reload.');
+    tabCheckPromises.push(
+      gsChrome.tabsUpdate(tab.id, { url: tab.url }).then(function() {
+        return new Promise(function(resolve) {
+          window.setTimeout(function() {
+            gsTabCheckManager.queueTabCheck(tab, preQueue);
+            resolve();
+          }, UNRESPONSIVE_TIMEOUT);
+        });
+      })
+    );
+    Promise.all(tabCheckPromises);
+  }
+
+  function checkNormalTab(tab, preQueue) {
+    const queuedTabDetails = getQueuedTabDetails(tab.id);
+    if (queuedTabDetails && queuedTabDetails.executionProps.refetchTab) {
       gsUtils.log(
         tab.id,
-        QUEUE_ID,
-        'Could not find an internal view for suspended tab.',
-        tab
+        'Refetching tab. Tab state may have changed since last check.',
+        queuedTabDetails
       );
-      if (!executionProps.resuspended) {
-        const resuspendOk = await resuspendSuspendedTab(tab);
-        if (resuspendOk) {
-          requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, {
-            resuspended: true,
-            refetchTab: true,
-          });
+      gsChrome.tabsGet(tab.id).then(function(newTab) {
+        if (!gsUtils.isValidTabInfo(newTab)) {
+          gsUtils.log(tab.id, 'Updated tab is invalid!');
           return;
         }
-        gsUtils.warning(tab.id, QUEUE_ID, 'Failed to resuspend tab');
-        resolve(gsUtils.STATUS_UNKNOWN);
-        return;
-      }
-      // Queue a refresh as tab may no longer exist
-      requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-      return;
-    }
-
-    // If tab is a file:// tab and file is blocked then unsuspend tab
-    if (!gsSession.isFileUrlsAccessAllowed()) {
-      const url = tab.url || tab.pendingUrl;
-      const originalUrl = gsUtils.getOriginalUrl(url);
-      if (originalUrl && originalUrl.indexOf('file') === 0) {
-        gsUtils.log(tab.id, QUEUE_ID, 'Unsuspending blocked local file tab.');
-        await gsChrome.tabsUpdate(tab.id, { url: originalUrl });
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-        return;
-      }
-    }
-
-    const attemptDiscarding =
-      gsStorage.getOption(gsStorage.DISCARD_AFTER_SUSPEND) &&
-      !gsUtils.isDiscardedTab(tab) &&
-      !tgs.isCurrentActiveTab(tab);
-    const tabSessionOk =
-      suspendedView.document.sessionId === gsSession.getSessionId();
-    const tabBasicsOk = ensureSuspendedTabTitleAndFaviconSet(tab);
-    const tabVisibleOk =
-      attemptDiscarding || ensureSuspendedTabVisible(suspendedView);
-    const tabChecksOk = tabSessionOk && tabBasicsOk && tabVisibleOk;
-
-    let reinitialised = false;
-    if (!tabChecksOk) {
-      const tabQueueDetails = _tabCheckQueue.getQueuedTabDetails(tab);
-      if (!tabQueueDetails) {
-        resolve(gsUtils.STATUS_UNKNOWN);
-        return;
-      }
-      try {
-        gsUtils.log(tab.id, QUEUE_ID, 'Reinitialising suspendedTab: ', tab);
-        // If we know that we will discard tab, then just perform a quick init
-        const quickInit = attemptDiscarding && !tab.active;
-        await gsSuspendedTab.initTab(tab, suspendedView, { quickInit });
-        reinitialised = true;
-      } catch (e) {
-        gsUtils.log(
-          tab.id,
-          QUEUE_ID,
-          'Failed to reinitialise suspendedTab. Will requeue with refetching.',
-          e
-        );
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-        return;
-      }
-    }
-
-    let discarded = false;
-    if (attemptDiscarding) {
-      // dont attempt discarding straight away if we have just reinitialised
-      // as it seems to take the favicon a while to display and discarding prematurely
-      // will break this process
-      if (reinitialised) {
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-        return;
-      }
-      discarded = await gsTabDiscardManager.queueTabForDiscardAsPromise(tab);
-    }
-    resolve(discarded ? gsUtils.STATUS_DISCARDED : gsUtils.STATUS_SUSPENDED);
-  }
-
-  async function resuspendSuspendedTab(tab) {
-    gsUtils.log(tab.id, QUEUE_ID, 'Resuspending unresponsive suspended tab.');
-    const suspendedView = tgs.getInternalViewByTabId(tab.id);
-    if (suspendedView) {
-      tgs.setTabStatePropForTabId(
-        tab.id,
-        tgs.STATE_DISABLE_UNSUSPEND_ON_RELOAD,
-        true
-      );
-    }
-    const reloadOk = await gsChrome.tabsReload(tab.id);
-    return reloadOk;
-  }
-
-  function ensureSuspendedTabVisible(tabView) {
-    if (!tabView) {
-      return false;
-    }
-    const bodyEl = tabView.document.getElementsByTagName('body')[0];
-    if (!bodyEl) {
-      return false;
-    }
-    return !bodyEl.classList.contains('hide-initially');
-  }
-
-  function ensureSuspendedTabTitleAndFaviconSet(tab) {
-    if (!tab.favIconUrl || tab.favIconUrl.indexOf('data:image') !== 0) {
-      gsUtils.log(tab.id, QUEUE_ID, 'Tab favicon not set or not dataUrl.', tab);
-      return false;
-    }
-    if (!tab.title || tab.title === _defaultTabTitle) {
-      gsUtils.log(tab.id, QUEUE_ID, 'Tab title not set', tab);
-      return false;
-    }
-    return true;
-  }
-
-  async function checkNormalTab(tab, executionProps, resolve, reject, requeue) {
-    if (executionProps.refetchTab) {
-      gsUtils.log(
-        tab.id,
-        QUEUE_ID,
-        'Tab refetch requested. Getting updated tab..'
-      );
-      tab = await getUpdatedTab(tab);
-      if (!tab) {
-        resolve(gsUtils.STATUS_UNKNOWN);
-        return;
-      }
-      gsUtils.log(tab.id, QUEUE_ID, 'Updated tab: ', tab);
-
-      // Ensure tab is not suspended
-      if (gsUtils.isSuspendedTab(tab, true)) {
-        gsUtils.log(tab.id, QUEUE_ID, 'Tab is suspended. Aborting check.');
-        resolve(gsUtils.STATUS_SUSPENDED);
-        return;
-      }
-
-      // If tab has a state of loading, then requeue for checking later
-      if (tab.status === 'loading') {
-        gsUtils.log(tab.id, QUEUE_ID, 'Tab is still loading');
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-        return;
-      }
-    }
-
-    if (gsUtils.isDiscardedTab(tab)) {
-      if (tab.active) {
-        gsUtils.log(
-          tab.id,
-          QUEUE_ID,
-          'Tab is discarded but active. Will wait for auto reload.'
-        );
-        requeue(500, { refetchTab: true });
-      } else {
-        gsUtils.log(tab.id, QUEUE_ID, 'Tab is discarded. Will reload.');
-        await gsChrome.tabsReload(tab.id);
-        requeue(DEFAULT_TAB_CHECK_REQUEUE_DELAY, { refetchTab: true });
-      }
-      return;
-    }
-
-    let tabInfo = await new Promise(r => {
-      gsMessages.sendRequestInfoToContentScript(tab.id, (error, tabInfo) =>
-        r(tabInfo)
-      );
-    });
-
-    if (tabInfo) {
-      resolve(tabInfo.status);
-      return;
-    }
-
-    const queuedTabDetails = _tabCheckQueue.getQueuedTabDetails(tab);
-    if (!queuedTabDetails) {
-      gsUtils.log(tab.id, QUEUE_ID, 'Tab missing from suspensionQueue?');
-      resolve(gsUtils.STATUS_UNKNOWN);
-      return;
-    }
-
-    if (tab.active && queuedTabDetails.requeues === 0) {
-      gsUtils.log(
-        tab.id,
-        QUEUE_ID,
-        'Tab is not responding but active. Will wait for potential auto reload.'
-      );
-      requeue(500, { refetchTab: false });
-      return;
-    }
-
-    tabInfo = await reinjectContentScriptOnTab(tab);
-    if (tabInfo) {
-      resolve(tabInfo.status);
-    } else {
-      resolve(gsUtils.STATUS_UNKNOWN);
-    }
-  }
-
-  // Careful with this function. It seems that these unresponsive tabs can sometimes
-  // not return any result after chrome.tabs.executeScript
-  // Try to mitigate this by wrapping in a setTimeout
-  // TODO: Report chrome bug
-  // Unrelated, but reinjecting content scripts has some issues:
-  // https://groups.google.com/a/chromium.org/forum/#!topic/chromium-extensions/QLC4gNlYjbA
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=649947
-  // Notably (for me), the key listener of the old content script remains active
-  // if using: window.addEventListener('keydown', formInputListener);
-  function reinjectContentScriptOnTab(tab) {
-    return new Promise(resolve => {
-      gsUtils.log(
-        tab.id,
-        QUEUE_ID,
-        'Reinjecting contentscript into unresponsive unsuspended tab.',
-        tab
-      );
-      const executeScriptTimeout = setTimeout(() => {
-        gsUtils.log(
-          QUEUE_ID,
-          tab.id,
-          'chrome.tabs.executeScript failed to trigger callback'
-        );
-        resolve(null);
-      }, 10000);
-      gsMessages.executeScriptOnTab(tab.id, 'js/contentscript.js', error => {
-        clearTimeout(executeScriptTimeout);
-        if (error) {
+        if (gsUtils.isDiscardedTab(newTab)) {
           gsUtils.log(
             tab.id,
-            'Failed to execute js/contentscript.js on tab',
-            error
+            'Tab has been discarded. Aborting tab check.',
+            newTab
           );
-          resolve(null);
           return;
         }
-        tgs
-          .initialiseTabContentScript(tab)
-          .then(tabInfo => {
-            resolve(tabInfo);
-          })
-          .catch(error => {
-            resolve(null);
-          });
+        gsTabCheckManager.queueTabCheck(newTab);
       });
+      return;
+    }
+
+    // Ensure we can access the chrome content scripts API
+    if (
+      !chrome.scripting &&
+      !chrome.tabs.executeScript
+    ) {
+      gsUtils.log(
+        tab.id,
+        'Chrome scripting API not available. Aborting tab check.'
+      );
+      return;
+    }
+
+    // If tab is loading then try again in a few seconds
+    if (tab.status === 'loading') {
+      gsUtils.log(tab.id, 'Tab is still loading');
+      window.setTimeout(function() {
+        preQueue.push('checkNormalTab');
+        gsTabCheckManager.queueTabCheck(tab, preQueue);
+      }, UNRESPONSIVE_TIMEOUT);
+      return;
+    }
+
+    // Make sure tab is fully loaded
+    if (tab.status !== 'complete') {
+      gsUtils.log(tab.id, 'Tab not fully loaded. Will check again in 10 seconds.');
+      window.setTimeout(function() {
+        preQueue.push('checkNormalTab');
+        gsTabCheckManager.queueTabCheck(tab, preQueue);
+      }, 10000);
+      return;
+    }
+
+    reinjectContentScriptOnTab(tab)
+      .then(function(response) {
+        if (response !== 'content_script_loaded') {
+          gsUtils.log(
+            tab.id,
+            'Failed to verify content script. Aborting tab check.',
+            response
+          );
+          return;
+        }
+
+        // Content script is loaded correctly, now check if we need to suspend
+        // gsUtils.log(tab.id, 'Content script verified. Continuing tab check.', response);
+        validateStayAwake(tab);
+      })
+      .catch(function(error) {
+        gsUtils.log(
+          tab.id,
+          'Failed to verify content script. Aborting tab check.',
+          error
+        );
+      });
+  }
+
+  async function reinjectContentScriptOnTab(tab) {
+    gsUtils.log(tab.id, 'Injecting content script to verify tab state');
+    return new Promise(function(resolve, reject) {
+      try {
+        gsMessages.executeScriptOnTab(
+          tab.id,
+          'js/contentscript.js',
+          function(error, response) {
+            if (error) {
+              gsUtils.log(tab.id, 'Failed to inject content script', error);
+              reject(error);
+              return;
+            }
+            if (!response) {
+              gsUtils.log(tab.id, 'No response from content script');
+              reject('No response from content script');
+              return;
+            }
+            resolve(response);
+          }
+        );
+      } catch (err) {
+        gsUtils.log(tab.id, 'Failed to inject content script', err);
+        reject(err);
+      }
+    });
+  }
+
+  function validateStayAwake(tab) {
+    // If we need to check if a tab should be unwhitelisted
+    chrome.alarms.get('stayAwakeReview', function(alarm) {
+      if (typeof alarm !== 'undefined') {
+        // If tab not in tempWhitelist, then check if it should be auto-unwhitelisted
+        gsUtils.log(tab.id, 'Found stay-awake review alarm. Performing check.');
+
+        const suspensionToggleTime = gsStorage.fetchNoticeVersion('temporarily-disabled');
+        // If suspension has ot been toggled, or suspension has been re-enabled, then clear alarm and continue tab check
+        if (!suspensionToggleTime || !gsStorage.getOption(gsStorage.SUSPEND_PAUSED)) {
+          chrome.alarms.clear('stayAwakeReview');
+          gsUtils.log(tab.id, 'Tab auto-unwhitelisting not required.');
+        } else {
+          const currentTime = new Date().getTime();
+          if (currentTime - suspensionToggleTime > 3600000) {
+            gsUtils.log(tab.id, 'Tab auto-unwhitelisting triggered.');
+            gsStorage.setOption(gsStorage.SUSPEND_PAUSED, false);
+            chrome.alarms.clear('stayAwakeReview');
+          }
+        }
+      }
+    });
+  }
+
+  function checkSuspendedTab(tab) {
+    var targetUrl;
+    var suspendedView = null;
+
+    if (gsUtils.isDiscardedTab(tab)) {
+      gsUtils.log(tab.id, 'Tab is discarded. Aborting check.');
+      return;
+    }
+
+    try {
+      targetUrl = gsUtils.getOriginalUrl(tab.url);
+      if (!targetUrl) {
+        gsUtils.log(tab.id, 'Could not determine original URL from suspended URL. Aborting check.');
+        return;
+      }
+    } catch (err) {
+      gsUtils.log(tab.id, 'Could not determine original URL from suspended URL. Aborting check.', err);
+      return;
+    }
+
+    // Try to find any suspendedViews for the tab
+    if (gsSession.isInitialising()) {
+      gsUtils.log(
+        tab.id,
+        'Extension is still initialising. Ignoring check for this suspended tab.'
+      );
+      return;
+    }
+
+    // If successful then update the tab with the new suspended URL
+    gsUtils.sendMessageToTab(tab.id, { action: 'requestInfo' }, function(
+      error,
+      suspendedView
+    ) {
+      if (error) {
+        gsUtils.log(tab.id, 'Failed to get requestInfo for suspended tab', error);
+        return;
+      }
+      if (!suspendedView) {
+        gsUtils.log(tab.id, 'RequestInfo returned null suspendedView. Skipping check.');
+        return;
+      }
+
+      if (!suspendedView.isStaticSuspendedTab) {
+        gsUtils.log(tab.id, 'This is not a static suspended tab. Skipping check.');
+        return;
+      }
+
+      const tabTitle = gsUtils.getSuspendedTitle(tab.url);
+      const faviconUrl = gsUtils.getFaviconFromSuspendedUrl(tab.url);
+      const faviconMeta = { favIconUrl: faviconUrl };
+      const scrollPosition = gsUtils.getSuspendedScrollPosition(tab.url);
+      gsTabSuspendManager
+        .handleSuspendedTabRecovered(
+          tab,
+          tabTitle,
+          targetUrl,
+          faviconMeta,
+          scrollPosition
+        )
+        .then(function(updatedTab) {
+          if (!updatedTab) {
+            gsUtils.log(
+              tab.id,
+              'Failed to update suspended tab recovery information.'
+            );
+          } else {
+            gsUtils.log(
+              tab.id,
+              'Successfully updated suspended tab recovery information.'
+            );
+            if (suspendedView.backHash && suspendedView.backHash !== 'null') {
+              gsUtils.log(tab.id, 'Saving back history for suspended tab.');
+              gsIndexedDb.setTabInfo({ backHash: suspendedView.backHash });
+            }
+          }
+        });
+    });
+  }
+
+  function performTabChecks() {
+    gsUtils.executeForEachTab(function(tab) {
+      gsTabCheckManager.queueTabCheck(tab);
     });
   }
 
   return {
-    initAsPromised,
-    performInitialisationTabChecks,
     queueTabCheck,
-    queueTabCheckAsPromise,
     unqueueTabCheck,
-    getQueuedTabCheckDetails,
-    ensureSuspendedTabVisible,
+    performTabChecks,
+    checkTabs: performTabChecks,
+    queueTabCheckAsPromise,
   };
 })();
+
+// Register with global registry if available
+if (typeof GS_REGISTRY !== 'undefined') {
+  GS_REGISTRY.register('gsTabCheckManager', gsTabCheckManager);
+}
