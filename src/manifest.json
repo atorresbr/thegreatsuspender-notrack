@@ -13,7 +13,8 @@
     "unlimitedStorage",
     "contextMenus",
     "cookies",
-    "favicon"
+    "favicon",
+    "alarms"
   ],
   
   "host_permissions": [
