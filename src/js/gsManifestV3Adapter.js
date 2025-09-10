@@ -75,13 +75,14 @@ var gsManifestV3Adapter = (function() {
     chrome.extension.getURL = chrome.runtime.getURL;
     chrome.extension.getBackgroundPage = function() {
       console.warn('chrome.extension.getBackgroundPage is not available in Manifest V3');
-      // Return self as a fallback
       return self;
     };
     chrome.extension.getViews = function() {
       console.warn('chrome.extension.getViews is not available in Manifest V3');
       return [];
     };
+    chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
+    chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
     
     // Add inIncognitoContext property
     Object.defineProperty(chrome.extension, 'inIncognitoContext', {
@@ -118,23 +119,6 @@ var gsManifestV3Adapter = (function() {
     }
     return originalContextMenusCreate(createProperties, callback);
   };
-  
-  // Handle internal view functions that won't work in service workers
-  if (typeof tgs !== 'undefined') {
-    // Replace any functions that use chrome.extension.getViews
-    if (tgs.getInternalViewByTabId) {
-      tgs.getInternalViewByTabId = function() {
-        console.warn('getInternalViewByTabId is not available in Manifest V3');
-        return null;
-      };
-    }
-    if (tgs.getInternalViewsByViewName) {
-      tgs.getInternalViewsByViewName = function() {
-        console.warn('getInternalViewsByViewName is not available in Manifest V3');
-        return [];
-      };
-    }
-  }
   
   return {
     saveState: function(key, value) {

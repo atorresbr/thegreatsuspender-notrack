@@ -57,15 +57,15 @@
   },
   
   "web_accessible_resources": [{
-  "resources": [
-    "suspended.html",
-    "css/*",
-    "img/*",
-    "js/*",
-    "font/*"
-  ],
-  "matches": ["<all_urls>"]
-}],
+    "resources": [
+      "suspended.html",
+      "css/*",
+      "img/*",
+      "js/*",
+      "font/*"
+    ],
+    "matches": ["<all_urls>"]
+  }],
   
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; child-src 'self'; connect-src 'self'; img-src 'self' data: chrome:; style-src 'self'; default-src 'self'"
