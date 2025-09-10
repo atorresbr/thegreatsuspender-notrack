@@ -31,6 +31,30 @@ importScripts('gsManifestV3Adapter.js');
 console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
 console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
 
+// Create gsFavicon stub to avoid errors
+self.gsFavicon = {
+  fetchFaviconDataUrl: function() {
+    return Promise.resolve('');
+  },
+  buildFaviconMetaData: function() {
+    return Promise.resolve({
+      favIconUrl: '',
+      normalisedDataUrl: '',
+      transparentDataUrl: ''
+    });
+  },
+  getFaviconMetaData: function() {
+    return Promise.resolve({
+      favIconUrl: '',
+      normalisedDataUrl: '',
+      transparentDataUrl: ''
+    });
+  },
+  generateFaviconFromUrl: function() {
+    return Promise.resolve('');
+  }
+};
+
 // Import all background scripts in the same order as the original manifest
 importScripts(
   'gsUtils.js',
