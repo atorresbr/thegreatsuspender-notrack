@@ -1,0 +1,15 @@
+--- gsTabDiscardManager.js
++++ gsTabDiscardManager.js
+@@ -43,7 +43,10 @@
+   },
+ 
+   unqueueTabForDiscard: function(tabId) {
+-    return gsTabQueue.unqueueTab(tabId, QUEUE_ID);
++    if (!gsTabQueue || typeof gsTabQueue.unqueueTab !== 'function') {
++      console.warn('gsTabQueue is not available for unqueueTabForDiscard');
++      return Promise.resolve();
++    }
++    return gsTabQueue.unqueueTab(tabId, QUEUE_ID);
+   },
+ 
+   handleDiscardTabJob: function(tab) {

@@ -67,6 +67,31 @@ var gsManifestV3Adapter = (function() {
       addEventListener: function() {},
       removeEventListener: function() {}
     };
+    
+    // Add online/offline event handlers here at initialization time
+    self.addEventListener('online', function() {
+      if (typeof gsUtils !== 'undefined' && typeof gsStorage !== 'undefined') {
+        gsUtils.log('background', 'Internet is online.');
+        //restart timer on all normal tabs
+        if (gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
+          if (typeof tgs !== 'undefined' && typeof tgs.resetAutoSuspendTimerForAllTabs === 'function') {
+            tgs.resetAutoSuspendTimerForAllTabs();
+          }
+        }
+        if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
+          tgs.setIconStatusForActiveTab();
+        }
+      }
+    });
+    
+    self.addEventListener('offline', function() {
+      if (typeof gsUtils !== 'undefined') {
+        gsUtils.log('background', 'Internet is offline.');
+        if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
+          tgs.setIconStatusForActiveTab();
+        }
+      }
+    });
   }
   
   // FIX 1: Make sure chrome.extension APIs are patched globally

@@ -4,6 +4,15 @@
  */
 'use strict';
 
+// Global error handlers
+self.addEventListener('error', function(event) {
+  console.error('Global error:', event.message, event.filename, event.lineno);
+});
+
+self.addEventListener('unhandledrejection', function(event) {
+  console.error('Unhandled rejection:', event.reason);
+});
+
 // Immediate patch for chrome.extension APIs before anything else runs
 if (!chrome.extension) {
   chrome.extension = {};
@@ -31,8 +40,16 @@ importScripts('gsManifestV3Adapter.js');
 console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
 console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
 
-// Create gsFavicon stub to avoid errors
-self.gsFavicon = {
+// Create stubs for important objects to avoid "undefined" errors
+self.gsTabQueue = self.gsTabQueue || {
+  queueTabAsPromise: function() { return Promise.resolve(); },
+  unqueueTab: function() { return Promise.resolve(); },
+  queueTabForSuspension: function() { return Promise.resolve(); },
+  queueTabForDiscarding: function() { return Promise.resolve(); },
+  requestProcessQueue: function() { return Promise.resolve(); }
+};
+
+self.gsFavicon = self.gsFavicon || {
   fetchFaviconDataUrl: function() {
     return Promise.resolve('');
   },
@@ -64,7 +81,7 @@ importScripts(
   'gsIndexedDb.js',
   'gsMessages.js',
   'gsSession.js',
-  'gsTabQueue.js',
+  'gsTabQueue.js',  // Make sure this comes before gsTabDiscardManager
   'gsTabCheckManager.js',
   'gsFavicon.js',
   'gsCleanScreencaps.js',
