@@ -82,8 +82,6 @@ var gsManifestV3Adapter = (function() {
       console.warn('chrome.extension.getViews is not available in Manifest V3');
       return [];
     };
-    chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
-    chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
     
     // Add inIncognitoContext property
     Object.defineProperty(chrome.extension, 'inIncognitoContext', {
@@ -104,12 +102,12 @@ var gsManifestV3Adapter = (function() {
     chrome.browserAction.setPopup = chrome.action.setPopup;
   }
   
-  // Add contextMenus wrapper that ensures IDs are set
+  // Wrap contextMenus API to ensure IDs
   const originalContextMenusCreate = chrome.contextMenus.create;
   chrome.contextMenus.create = function(createProperties, callback) {
     // Ensure createProperties has an id
     if (!createProperties.id) {
-      // Generate a unique ID using title and context
+      // Generate a random id if none exists
       const titlePart = createProperties.title 
         ? createProperties.title.substring(0, 20).replace(/[^\w]/g, '_')
         : '';
@@ -121,79 +119,22 @@ var gsManifestV3Adapter = (function() {
     return originalContextMenusCreate(createProperties, callback);
   };
   
-  // Store intervals/timeouts to clear on service worker shutdown
-  var registeredIntervals = [];
-  var registeredTimeouts = [];
-  
-  // Override setTimeout/setInterval to track and manage them
-  const originalSetTimeout = self.setTimeout;
-  const originalSetInterval = self.setInterval;
-  const originalClearTimeout = self.clearTimeout;
-  const originalClearInterval = self.clearInterval;
-  
-  self.setTimeout = function(fn, delay, ...args) {
-    const timeoutId = originalSetTimeout.apply(this, [fn, delay, ...args]);
-    registeredTimeouts.push(timeoutId);
-    return timeoutId;
-  };
-  
-  self.setInterval = function(fn, delay, ...args) {
-    // For longer intervals (over 1 minute), use alarms instead
-    if (delay > 60000) {
-      const alarmName = 'gsInterval_' + Math.random().toString(36).substring(2);
-      
-      chrome.alarms.create(alarmName, {
-        periodInMinutes: delay / 60000
-      });
-      
-      chrome.alarms.onAlarm.addListener(function(alarm) {
-        if (alarm.name === alarmName) {
-          fn(...args);
-        }
-      });
-      
-      return alarmName;
-    } else {
-      const intervalId = originalSetInterval.apply(this, [fn, delay, ...args]);
-      registeredIntervals.push(intervalId);
-      return intervalId;
+  // Handle internal view functions that won't work in service workers
+  if (typeof tgs !== 'undefined') {
+    // Replace any functions that use chrome.extension.getViews
+    if (tgs.getInternalViewByTabId) {
+      tgs.getInternalViewByTabId = function() {
+        console.warn('getInternalViewByTabId is not available in Manifest V3');
+        return null;
+      };
     }
-  };
-  
-  self.clearTimeout = function(timeoutId) {
-    originalClearTimeout(timeoutId);
-    const index = registeredTimeouts.indexOf(timeoutId);
-    if (index > -1) {
-      registeredTimeouts.splice(index, 1);
+    if (tgs.getInternalViewsByViewName) {
+      tgs.getInternalViewsByViewName = function() {
+        console.warn('getInternalViewsByViewName is not available in Manifest V3');
+        return [];
+      };
     }
-  };
-  
-  self.clearInterval = function(intervalId) {
-    // Check if this is an alarm name
-    if (typeof intervalId === 'string' && intervalId.startsWith('gsInterval_')) {
-      chrome.alarms.clear(intervalId);
-      return;
-    }
-    
-    originalClearInterval(intervalId);
-    const index = registeredIntervals.indexOf(intervalId);
-    if (index > -1) {
-      registeredIntervals.splice(index, 1);
-    }
-  };
-  
-  // On service worker termination, clean up
-  self.addEventListener('unload', function() {
-    // Clear all intervals
-    registeredIntervals.forEach(function(intervalId) {
-      originalClearInterval(intervalId);
-    });
-    
-    // Clear all timeouts
-    registeredTimeouts.forEach(function(timeoutId) {
-      originalClearTimeout(timeoutId);
-    });
-  });
+  }
   
   return {
     saveState: function(key, value) {
