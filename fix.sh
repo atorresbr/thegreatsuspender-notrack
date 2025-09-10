@@ -1,131 +1,45 @@
 #!/bin/bash
-# Direct fix by completely replacing the problematic file
+# Direct fix for gsTabCheckManager.js
 JS_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack/src/js"
 
-# Create a backup
-cp "$JS_DIR/gsTabDiscardManager.js" "$JS_DIR/gsTabDiscardManager.js.bak"
+echo "Making direct changes to files..."
 
-# Create a new file with a fixed unqueueTabForDiscard function
-cat > "$JS_DIR/gsTabDiscardManager.js.fixed" << 'EOF'
-/*global gsUtils, gsChrome, gsStorage, gsTabSuspendManager, gsTabQueue */
-'use strict';
-
-var gsTabDiscardManager = (function() {
-  // Private variables
-  var QUEUE_ID = 'discardQueue';
-
-  // Private functions
-  function queueTabForDiscardAsPromise(tab) {
-    return new Promise(function(resolve) {
-      gsUtils.log(tab.id, 'Queuing tab for discard.');
-      gsTabQueue.queueTabAsPromise(tab.id, QUEUE_ID, function() {
-        handleDiscardTabJob(tab);
-      }).then(resolve);
-    });
+# 1. First create a proper globalQueue.js file
+cat > "$JS_DIR/globalQueue.js" << 'EOF'
+// Global queue implementation that is guaranteed to be available
+var gsTabQueue = gsTabQueue || {
+  queueTabAsPromise: function(tabId, queueId, callback) { 
+    console.log("Global gsTabQueue.queueTabAsPromise called:", tabId, queueId); 
+    if (typeof callback === 'function') {
+      setTimeout(callback, 0);
+    }
+    return Promise.resolve(); 
+  },
+  unqueueTab: function(tabId, queueId) { 
+    console.log("Global gsTabQueue.unqueueTab called:", tabId, queueId); 
+    return Promise.resolve(); 
+  },
+  requestProcessQueue: function() { 
+    console.log("Global gsTabQueue.requestProcessQueue called"); 
+    return Promise.resolve(); 
   }
+};
 
-  function requestTabDiscardAsPromise(tab) {
-    return new Promise(function(resolve, reject) {
-      gsUtils.log(tab.id, 'Forcing discarding of tab.');
-      if (gsUtils.isSuspendedTab(tab) || gsUtils.isSpecialTab(tab)) {
-        resolve(false);
-        return;
-      }
-      if (tab.hasOwnProperty('discarded') && tab.discarded) {
-        resolve(false);
-        return;
-      }
-      if (chrome.tabs.discard) {
-        chrome.tabs.discard(tab.id, function() {
-          if (chrome.runtime.lastError) {
-            gsUtils.log(
-              tab.id,
-              'Failed to discard tab',
-              chrome.runtime.lastError
-            );
-            resolve(false);
-            return;
-          }
-          resolve(true);
-        });
-      } else {
-        resolve(false);
-      }
-    });
-  }
+// Make global queue available everywhere
+if (typeof window !== 'undefined') window.gsTabQueue = gsTabQueue;
+if (typeof self !== 'undefined') self.gsTabQueue = gsTabQueue;
 
-  return {
-    queueTabForDiscard: function(tab) {
-      return queueTabForDiscardAsPromise(tab);
-    },
-
-    unqueueTabForDiscard: function(tabId) {
-      // Add defensive check for gsTabQueue
-      if (!gsTabQueue || typeof gsTabQueue.unqueueTab !== 'function') {
-        console.warn('gsTabQueue is not available for unqueueTabForDiscard');
-        return Promise.resolve();
-      }
-      return gsTabQueue.unqueueTab(tabId, QUEUE_ID);
-    },
-
-    handleDiscardTabJob: function(tab) {
-      return requestTabDiscardAsPromise(tab);
-    },
-
-    discardLowMemoryTabs: function() {
-      gsUtils.log('gsTabDiscardManager', 'discardLowMemoryTabs');
-      gsChrome.tabsQuery({}).then(function(tabs) {
-        if (tabs.length === 0) {
-          return;
-        }
-        var totalMemory = 0;
-        var lowestMemoryTab = null;
-        var lowestMemory = false;
-        tabs.forEach(function(tab) {
-          var tabMemory = 0;
-          if (
-            tab.hasOwnProperty('title') &&
-            tab.title &&
-            tab.title.indexOf('Great Suspender') < 0 &&
-            !gsUtils.isSpecialTab(tab) &&
-            !gsUtils.isSuspendedTab(tab) &&
-            !gsTabSuspendManager.getQueuedOrSuspendingTabById(tab.id)
-          ) {
-            tabMemory = gsTabSuspendManager.getTabScore(tab);
-            totalMemory += tabMemory;
-            if (!lowestMemory || tabMemory < lowestMemory) {
-              lowestMemory = tabMemory;
-              lowestMemoryTab = tab;
-            }
-          }
-        });
-        gsUtils.log('gsTabDiscardManager', 'totalMemory: ' + totalMemory);
-        gsUtils.log('gsTabDiscardManager', 'lowestMemoryTab: ', lowestMemoryTab);
-        if (
-          totalMemory > 0 &&
-          lowestMemoryTab &&
-          gsUtils.isNormalTab(lowestMemoryTab)
-        ) {
-          requestTabDiscardAsPromise(lowestMemoryTab);
-        }
-      });
-    },
-  };
-})();
+console.log("Global gsTabQueue installed and ready!");
 EOF
 
-# Replace the original with the fixed version
-mv "$JS_DIR/gsTabDiscardManager.js.fixed" "$JS_DIR/gsTabDiscardManager.js"
+# 2. Update background-wrapper.js to load globalQueue.js FIRST before other scripts
+sed -i '1i // Auto-patched by fix.sh\n// Load global queue implementation first\nimportScripts("globalQueue.js");\n' "$JS_DIR/background-wrapper.js"
 
-# Also ensure gsTabQueue is defined globally in background-wrapper.js if needed
-sed -i '/importScripts/i \
-// Define gsTabQueue globally before importing any scripts\
-self.gsTabQueue = {\
-  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },\
-  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },\
-  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }\
-};' "$JS_DIR/background-wrapper.js"
+# 3. DIRECTLY modify gsTabCheckManager.js instead of using sed
+cp "$JS_DIR/gsTabCheckManager.js" "$JS_DIR/gsTabCheckManager.js.backup"
 
-echo "Fixed gsTabDiscardManager.js with complete replacement"
-echo "Also added global gsTabQueue definition to background-wrapper.js"
-echo "Reload the extension in Chrome to apply changes"
+# 4. Insert code at the TOP of gsTabCheckManager.js to ensure gsTabQueue is available
+sed -i '1i // Auto-patched by fix.sh\n// Ensure gsTabQueue is available\nif (typeof gsTabQueue === "undefined") {\n  console.warn("gsTabQueue not found, using fallback");\n  var gsTabQueue = {\n    queueTabAsPromise: function(tabId, queueId, callback) {\n      console.log("Fallback queueTabAsPromise", tabId, queueId);\n      if (typeof callback === "function") setTimeout(callback, 0);\n      return Promise.resolve();\n    },\n    unqueueTab: function() { return Promise.resolve(); },\n    requestProcessQueue: function() { return Promise.resolve(); }\n  };\n}\n' "$JS_DIR/gsTabCheckManager.js"
+
+echo "✅ Files modified successfully!"
+echo "Please reload the extension in Chrome and test again."

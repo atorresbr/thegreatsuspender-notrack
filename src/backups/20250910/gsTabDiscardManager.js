@@ -9,11 +9,6 @@ var gsTabDiscardManager = (function() {
   function queueTabForDiscardAsPromise(tab) {
     return new Promise(function(resolve) {
       gsUtils.log(tab.id, 'Queuing tab for discard.');
-      if (!gsTabQueue || typeof gsTabQueue.queueTabAsPromise !== 'function') {
-        console.warn('gsTabQueue.queueTabAsPromise not available');
-        resolve();
-        return;
-      }
       gsTabQueue.queueTabAsPromise(tab.id, QUEUE_ID, function() {
         handleDiscardTabJob(tab);
       }).then(resolve);
@@ -70,10 +65,6 @@ var gsTabDiscardManager = (function() {
 
     discardLowMemoryTabs: function() {
       gsUtils.log('gsTabDiscardManager', 'discardLowMemoryTabs');
-      if (!gsChrome || !gsChrome.tabsQuery) {
-        console.warn('gsChrome.tabsQuery not available');
-        return;
-      }
       gsChrome.tabsQuery({}).then(function(tabs) {
         if (tabs.length === 0) {
           return;

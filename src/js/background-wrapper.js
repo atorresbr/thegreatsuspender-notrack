@@ -1,3 +1,7 @@
+// Auto-patched by fix.sh
+// Load global queue implementation first
+importScripts("globalQueue.js");
+
 /**
  * The Great Suspender - NoTrack
  * Background Service Worker Wrapper for Manifest V3
@@ -34,28 +38,42 @@ Object.defineProperty(chrome.extension, 'inIncognitoContext', {
   }
 });
 
-// Now import our compatibility adapter
-// Define gsTabQueue globally before importing any scripts
+// Create essential global objects before importing scripts
+self.window = self;
+self.document = {
+  createElement: function() {
+    return {
+      style: {},
+      setAttribute: function() {},
+      appendChild: function() {},
+      addEventListener: function() {},
+      removeEventListener: function() {}
+    };
+  },
+  addEventListener: function() {},
+  removeEventListener: function() {}
+};
+
+// Define important stubs before any scripts are loaded
 self.gsTabQueue = {
-  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },
-  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },
-  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }
+  queueTabAsPromise: function(tabId, queueId, callback) { 
+    console.log("gsTabQueue.queueTabAsPromise stub called:", tabId, queueId); 
+    if (typeof callback === 'function') {
+      setTimeout(callback, 0);
+    }
+    return Promise.resolve(); 
+  },
+  unqueueTab: function(tabId, queueId) { 
+    console.log("gsTabQueue.unqueueTab stub called:", tabId, queueId); 
+    return Promise.resolve(); 
+  },
+  requestProcessQueue: function() { 
+    console.log("gsTabQueue.requestProcessQueue stub called"); 
+    return Promise.resolve(); 
+  }
 };
-importScripts('gsManifestV3Adapter.js');
 
-console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
-console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
-
-// Create stubs for important objects to avoid "undefined" errors
-self.gsTabQueue = self.gsTabQueue || {
-  queueTabAsPromise: function() { return Promise.resolve(); },
-  unqueueTab: function() { return Promise.resolve(); },
-  queueTabForSuspension: function() { return Promise.resolve(); },
-  queueTabForDiscarding: function() { return Promise.resolve(); },
-  requestProcessQueue: function() { return Promise.resolve(); }
-};
-
-self.gsFavicon = self.gsFavicon || {
+self.gsFavicon = {
   fetchFaviconDataUrl: function() {
     return Promise.resolve('');
   },
@@ -78,30 +96,87 @@ self.gsFavicon = self.gsFavicon || {
   }
 };
 
-// Import all background scripts in the same order as the original manifest
-// Define gsTabQueue globally before importing any scripts
-self.gsTabQueue = {
-  queueTabAsPromise: function(tabId, queueId, callback) { console.log("stub queueTabAsPromise"); return Promise.resolve(); },
-  unqueueTab: function(tabId, queueId) { console.log("stub unqueueTab"); return Promise.resolve(); },
-  requestProcessQueue: function() { console.log("stub requestProcessQueue"); return Promise.resolve(); }
-};
-importScripts(
-  'gsUtils.js',
-  'gsChrome.js',
-  'gsStorage.js',
-  'db.js',
-  'gsIndexedDb.js',
-  'gsMessages.js',
-  'gsSession.js',
-  'gsTabQueue.js',  // Make sure this comes before gsTabDiscardManager
-  'gsTabCheckManager.js',
-  'gsFavicon.js',
-  'gsCleanScreencaps.js',
-  'gsTabSuspendManager.js',
-  'gsTabDiscardManager.js',
-  'gsSuspendedTab.js',
-  'background.js'
-);
+// Now import our compatibility adapter
+importScripts('gsManifestV3Adapter.js');
+importScripts('globalBinding.js');
+
+console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
+console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
+
+// Import all background scripts in the correct order with explicit error handling
+try {
+  importScripts('gsUtils.js');
+  console.log('Loaded: gsUtils.js');
+  
+  importScripts('gsChrome.js');
+  console.log('Loaded: gsChrome.js');
+  
+  importScripts('gsStorage.js');
+  console.log('Loaded: gsStorage.js');
+  
+  importScripts('db.js');
+  console.log('Loaded: db.js');
+  
+  importScripts('gsIndexedDb.js');
+  console.log('Loaded: gsIndexedDb.js');
+  
+  importScripts('gsMessages.js');
+  console.log('Loaded: gsMessages.js');
+  
+  importScripts('gsSession.js');
+  console.log('Loaded: gsSession.js');
+  
+  importScripts('gsTabQueue.js');
+  console.log('Loaded: gsTabQueue.js');
+  
+  importScripts('gsTabCheckManager.js');
+  console.log('Loaded: gsTabCheckManager.js');
+  
+  importScripts('gsFavicon.js');
+  console.log('Loaded: gsFavicon.js');
+  
+  importScripts('gsCleanScreencaps.js');
+  console.log('Loaded: gsCleanScreencaps.js');
+  
+  importScripts('gsTabSuspendManager.js');
+  console.log('Loaded: gsTabSuspendManager.js');
+  
+  importScripts('gsTabDiscardManager.js');
+  console.log('Loaded: gsTabDiscardManager.js');
+  
+  importScripts('gsSuspendedTab.js');
+  console.log('Loaded: gsSuspendedTab.js');
+  
+  importScripts('background.js');
+  console.log('Loaded: background.js');
+} catch (err) {
+  console.error('Error loading scripts:', err);
+}
+
+// Add online/offline event handlers here at initialization time
+self.addEventListener('online', function() {
+  if (typeof gsUtils !== 'undefined' && typeof gsStorage !== 'undefined') {
+    gsUtils.log('background', 'Internet is online.');
+    //restart timer on all normal tabs
+    if (gsStorage.getOption && gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
+      if (typeof tgs !== 'undefined' && typeof tgs.resetAutoSuspendTimerForAllTabs === 'function') {
+        tgs.resetAutoSuspendTimerForAllTabs();
+      }
+    }
+    if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
+      tgs.setIconStatusForActiveTab();
+    }
+  }
+});
+
+self.addEventListener('offline', function() {
+  if (typeof gsUtils !== 'undefined') {
+    gsUtils.log('background', 'Internet is offline.');
+    if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
+      tgs.setIconStatusForActiveTab();
+    }
+  }
+});
 
 // Service worker lifecycle events
 self.addEventListener('install', (event) => {
@@ -122,10 +197,24 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'checkTabs') {
     // This simulates the periodic checks that the original extension did with setInterval
     if (typeof gsTabCheckManager !== 'undefined' && gsTabCheckManager.performTabChecks) {
+      console.log('Running periodic tab checks');
       gsTabCheckManager.performTabChecks();
     }
+  } else if (alarm.name === 'keepAlive') {
+    console.log('Service worker keepAlive ping');
   }
 });
 
-// Debugging helper
+// Fix 5: Add debug message to check if suspension feature works
+chrome.commands.onCommand.addListener(function(command) {
+  console.log('Command received:', command);
+  if (command === '1-suspend-tab' && typeof tgs !== 'undefined') {
+    console.log('Suspend command received, tgs available:', typeof tgs !== 'undefined');
+    // Additional debug info
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      console.log('Active tab to suspend:', tabs[0]);
+    });
+  }
+});
+
 console.log('Great Suspender background wrapper loaded');

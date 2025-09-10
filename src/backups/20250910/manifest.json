@@ -13,6 +13,7 @@
     "unlimitedStorage",
     "contextMenus",
     "cookies",
+    "favicon",
     "alarms",
     "scripting"
   ],
@@ -68,7 +69,7 @@
   }],
   
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'; child-src 'self'; connect-src 'self'; img-src 'self' data: chrome:; style-src 'self'; default-src 'self'"
   },
   
   "incognito": "split",

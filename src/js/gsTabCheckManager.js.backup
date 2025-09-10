@@ -1,18 +1,3 @@
-// Auto-patched by fix.sh
-// Ensure gsTabQueue is available
-if (typeof gsTabQueue === "undefined") {
-  console.warn("gsTabQueue not found, using fallback");
-  var gsTabQueue = {
-    queueTabAsPromise: function(tabId, queueId, callback) {
-      console.log("Fallback queueTabAsPromise", tabId, queueId);
-      if (typeof callback === "function") setTimeout(callback, 0);
-      return Promise.resolve();
-    },
-    unqueueTab: function() { return Promise.resolve(); },
-    requestProcessQueue: function() { return Promise.resolve(); }
-  };
-}
-
 /*global chrome, localStorage, tgs, gsStorage, gsSession, gsMessages, gsUtils, gsTabDiscardManager, gsChrome, GsTabQueue, gsSuspendedTab */
 // eslint-disable-next-line no-unused-vars
 var gsTabCheckManager = (function() {

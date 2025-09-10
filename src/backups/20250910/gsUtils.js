@@ -212,23 +212,7 @@ var gsUtils = {
     } else if (looseMatching) {
       return url.indexOf('suspended.html') > 0;
     } else {
-      // Current extension URL check
-      if (url.indexOf((chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL : chrome.extension.getURL)('suspended.html')) === 0) {
-        return true;
-      }
-      
-      // Check for URLs from old extension IDs
-      var OLD_EXTENSION_IDS = [
-        'ahkbmjhfoplmfkpncgoedjgkajkehcgo', // Your old extension ID
-        'klbibkeccnjlkjkiokjodocebajanakg'  // Original The Great Suspender ID
-      ];
-      for (var i = 0; i < OLD_EXTENSION_IDS.length; i++) {
-        var oldExtensionUrl = 'chrome-extension://' + OLD_EXTENSION_IDS[i] + '/suspended.html';
-        if (url.indexOf(oldExtensionUrl) === 0) {
-          return true;
-        }
-      }
-      return false;
+      return url.indexOf((chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL : chrome.extension.getURL)('suspended.html')) === 0;
     }
   },
 
@@ -523,19 +507,10 @@ var gsUtils = {
     return gsUtils.decodeString(gsUtils.getHashVariable('pos', urlStr) || '');
   },
   getOriginalUrl: function(urlStr) {
-    if (!urlStr) {
-      return null;
-    }
-    // Handle URLs from old extensions
-    var originalUrl;
-    if (urlStr.includes('suspended.html')) {
-      originalUrl = gsUtils.getHashVariable('uri', urlStr);
-      if (!originalUrl) {
-        // Try the url parameter used in some older versions
-        originalUrl = gsUtils.getHashVariable('url', urlStr);
-      }
-    }
-    return originalUrl;
+    return (
+      gsUtils.getHashVariable('uri', urlStr) ||
+      gsUtils.decodeString(gsUtils.getHashVariable('url', urlStr) || '')
+    );
   },
   getCleanTabTitle: function(tab) {
     let cleanedTitle = gsUtils.decodeString(tab.title);
