@@ -1,3 +1,19 @@
+#!/bin/bash
+# Script to fix context menu issues in Manifest V3
+# Run from the repository root directory
+
+REPO_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack"
+JS_DIR="$REPO_DIR/src/js"
+ADAPTER_FILE="$JS_DIR/gsManifestV3Adapter.js"
+
+echo "Fixing context menu issues for Manifest V3..."
+
+# Backup the original files
+echo "Creating backup of gsManifestV3Adapter.js..."
+cp "$ADAPTER_FILE" "$ADAPTER_FILE.bak"
+
+# Update the gsManifestV3Adapter.js file
+cat > "$ADAPTER_FILE" << 'EOF'
 /**
  * The Great Suspender - NoTrack
  * Manifest V3 Compatibility Adapter
@@ -159,3 +175,9 @@ var gsManifestV3Adapter = (function() {
 // Initialize the adapter right away
 gsManifestV3Adapter;
 console.log('Manifest V3 adapter loaded with compatibility layers');
+EOF
+
+echo "Updated gsManifestV3Adapter.js with context menu fixes"
+
+echo "Fix completed!"
+echo "Please reload the extension in Chrome to apply the changes."

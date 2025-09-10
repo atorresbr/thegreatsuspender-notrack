@@ -103,46 +103,22 @@ var gsManifestV3Adapter = (function() {
     chrome.browserAction.setPopup = chrome.action.setPopup;
   }
   
-  // Store context menu click handlers
-  const contextMenuHandlers = {};
-  
-  // Replace onclick parameter with storing the handler and using onClicked event
+  // Wrap contextMenus API to ensure IDs
   const originalContextMenusCreate = chrome.contextMenus.create;
   chrome.contextMenus.create = function(createProperties, callback) {
-    // Store the onclick handler if it exists
-    if (createProperties.onclick) {
-      const handler = createProperties.onclick;
-      
-      // Ensure we have an ID for the menu item
-      if (!createProperties.id) {
-        const titlePart = createProperties.title 
-          ? createProperties.title.substring(0, 20).replace(/[^\w]/g, '_')
-          : '';
-        const contextPart = createProperties.contexts 
-          ? createProperties.contexts.join('_')
-          : '';
-        createProperties.id = `${titlePart}_${contextPart}_${Math.random().toString(36).substring(2, 8)}`;
-      }
-      
-      // Store the handler with the ID
-      contextMenuHandlers[createProperties.id] = handler;
-      
-      // Remove the onclick property
-      delete createProperties.onclick;
+    // Ensure createProperties has an id
+    if (!createProperties.id) {
+      // Generate a random id if none exists
+      const titlePart = createProperties.title 
+        ? createProperties.title.substring(0, 20).replace(/[^\w]/g, '_')
+        : '';
+      const contextPart = createProperties.contexts 
+        ? createProperties.contexts.join('_')
+        : '';
+      createProperties.id = `${titlePart}_${contextPart}_${Math.random().toString(36).substring(2, 8)}`;
     }
-    
     return originalContextMenusCreate(createProperties, callback);
   };
-  
-  // Set up the onClicked listener if it's not already set up
-  if (!chrome.contextMenus.__onClickedListenerAdded) {
-    chrome.contextMenus.onClicked.addListener((info, tab) => {
-      if (contextMenuHandlers[info.menuItemId]) {
-        contextMenuHandlers[info.menuItemId](info, tab);
-      }
-    });
-    chrome.contextMenus.__onClickedListenerAdded = true;
-  }
   
   return {
     saveState: function(key, value) {
