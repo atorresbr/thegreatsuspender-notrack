@@ -6,6 +6,60 @@
 
 var gsManifestV3Adapter = (function() {
   
+  // Add localStorage polyfill for service workers
+  if (typeof localStorage === 'undefined') {
+    self.localStorage = {
+      _data: {},
+      
+      setItem: function(key, value) {
+        this._data[key] = String(value);
+        chrome.storage.local.set({[key]: String(value)});
+      },
+      
+      getItem: function(key) {
+        if (!this._data[key]) {
+          // Need to sync from chrome.storage.local first time
+          const self = this;
+          chrome.storage.local.get(key, function(result) {
+            if (result[key]) {
+              self._data[key] = result[key];
+            }
+          });
+        }
+        return this._data[key] === undefined ? null : this._data[key];
+      },
+      
+      removeItem: function(key) {
+        delete this._data[key];
+        chrome.storage.local.remove(key);
+      },
+      
+      clear: function() {
+        this._data = {};
+        chrome.storage.local.clear();
+      },
+      
+      key: function(i) {
+        const keys = Object.keys(this._data);
+        return i >= keys.length ? null : keys[i];
+      },
+      
+      get length() {
+        return Object.keys(this._data).length;
+      }
+    };
+    
+    // Preload all existing storage data
+    chrome.storage.local.get(null, function(items) {
+      for (const key in items) {
+        if (items.hasOwnProperty(key)) {
+          localStorage._data[key] = items[key];
+        }
+      }
+      console.log('localStorage polyfill initialized with', Object.keys(localStorage._data).length, 'items');
+    });
+  }
+  
   // Provide a fake window object for scripts expecting DOM
   if (typeof window === 'undefined') {
     self.window = self;
@@ -133,3 +187,7 @@ var gsManifestV3Adapter = (function() {
     loadState: loadState
   };
 })();
+
+// Initialize the adapter right away
+gsManifestV3Adapter;
+console.log('Manifest V3 adapter loaded with localStorage polyfill');

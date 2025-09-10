@@ -4,8 +4,10 @@
  */
 'use strict';
 
-// First import our compatibility adapter
+// First import our compatibility adapter before ANY other scripts
 importScripts('gsManifestV3Adapter.js');
+
+console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
 
 // Import all background scripts in the same order as the original manifest
 importScripts(
