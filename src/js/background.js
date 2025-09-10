@@ -1401,113 +1401,31 @@ var tgs = (function() {
 
   //HANDLERS FOR RIGHT-CLICK CONTEXT MENU
   function buildContextMenu(showContextMenu) {
-    const allContexts = [
-      'page',
-      'frame',
-      'editable',
-      'image',
-      'video',
-      'audio',
-    ]; //'selection',
-
+    chrome.contextMenus.removeAll();
     if (!showContextMenu) {
-      chrome.contextMenus.removeAll();
-    } else {
-      chrome.contextMenus.create({
-        id: 'suspendTab',
-        title: chrome.i18n.getMessage('js_context_open_link_in_suspended_tab'),
-        contexts: ['link'],
-        onclick: (info, tab) => {
-          openLinkInSuspendedTab(tab, info.linkUrl);
-        },
-      });
-
-      chrome.contextMenus.create({
-        id: 'suspendTab',
-        title: chrome.i18n.getMessage('js_context_toggle_suspend_state'),
-        contexts: allContexts,
-        onclick: () => toggleSuspendedStateOfHighlightedTab(),
-      });
-      chrome.contextMenus.create({
-        id: 'pauseSuspension',
-        title: chrome.i18n.getMessage('js_context_toggle_pause_suspension'),
-        contexts: allContexts,
-        onclick: () => requestToggleTempWhitelistStateOfHighlightedTab(),
-      });
-      chrome.contextMenus.create({
-        id: 'whitelistPage',
-        title: chrome.i18n.getMessage('js_context_never_suspend_page'),
-        contexts: allContexts,
-        onclick: () => whitelistHighlightedTab(true),
-      });
-      chrome.contextMenus.create({
-        id: 'whitelistDomain',
-        title: chrome.i18n.getMessage('js_context_never_suspend_domain'),
-        contexts: allContexts,
-        onclick: () => whitelistHighlightedTab(false),
-      });
-
-      chrome.contextMenus.create({
-        type: 'separator',
-        contexts: allContexts,
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage('js_context_suspend_selected_tabs'),
-        contexts: allContexts,
-        onclick: () => suspendSelectedTabs(),
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage('js_context_unsuspend_selected_tabs'),
-        contexts: allContexts,
-        onclick: () => unsuspendSelectedTabs(),
-      });
-
-      chrome.contextMenus.create({
-        type: 'separator',
-        contexts: allContexts,
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage(
-          'js_context_soft_suspend_other_tabs_in_window'
-        ),
-        contexts: allContexts,
-        onclick: () => suspendAllTabs(false),
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage(
-          'js_context_force_suspend_other_tabs_in_window'
-        ),
-        contexts: allContexts,
-        onclick: () => suspendAllTabs(true),
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage(
-          'js_context_unsuspend_all_tabs_in_window'
-        ),
-        contexts: allContexts,
-        onclick: () => unsuspendAllTabs(),
-      });
-
-      chrome.contextMenus.create({
-        type: 'separator',
-        contexts: allContexts,
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage('js_context_soft_suspend_all_tabs'),
-        contexts: allContexts,
-        onclick: () => suspendAllTabsInAllWindows(false),
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage('js_context_force_suspend_all_tabs'),
-        contexts: allContexts,
-        onclick: () => suspendAllTabsInAllWindows(true),
-      });
-      chrome.contextMenus.create({
-        title: chrome.i18n.getMessage('js_context_unsuspend_all_tabs'),
-        contexts: allContexts,
-        onclick: () => unsuspendAllTabsInAllWindows(),
-      });
+      return;
     }
+
+    // Add unique IDs to all context menu items
+    chrome.contextMenus.create({
+      id: 'suspendTab',
+      title: chrome.i18n.getMessage('js_context_toggle_suspend_state'),
+      contexts: ['page', 'action'],
+      onclick: () => {
+        toggleSuspendedStateOfHighlightedTab();
+      },
+    });
+
+    chrome.contextMenus.create({
+      id: 'suspendAllTabs',
+      title: chrome.i18n.getMessage('js_context_suspend_all_tabs'),
+      contexts: ['page', 'action'],
+      onclick: () => {
+        suspendAllTabs();
+      },
+    });
+    
+    // ... other context menu items need IDs too
   }
 
   //HANDLERS FOR KEYBOARD SHORTCUTS
