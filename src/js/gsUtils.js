@@ -212,7 +212,7 @@ var gsUtils = {
     } else if (looseMatching) {
       return url.indexOf('suspended.html') > 0;
     } else {
-      return url.indexOf(chrome.extension.getURL('suspended.html')) === 0;
+      return url.indexOf((chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL : chrome.extension.getURL)('suspended.html')) === 0;
     }
   },
 

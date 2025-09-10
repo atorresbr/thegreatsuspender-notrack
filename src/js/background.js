@@ -1414,6 +1414,7 @@ var tgs = (function() {
       chrome.contextMenus.removeAll();
     } else {
       chrome.contextMenus.create({
+        id: 'suspendTab',
         title: chrome.i18n.getMessage('js_context_open_link_in_suspended_tab'),
         contexts: ['link'],
         onclick: (info, tab) => {
@@ -1422,21 +1423,25 @@ var tgs = (function() {
       });
 
       chrome.contextMenus.create({
+        id: 'suspendTab',
         title: chrome.i18n.getMessage('js_context_toggle_suspend_state'),
         contexts: allContexts,
         onclick: () => toggleSuspendedStateOfHighlightedTab(),
       });
       chrome.contextMenus.create({
+        id: 'pauseSuspension',
         title: chrome.i18n.getMessage('js_context_toggle_pause_suspension'),
         contexts: allContexts,
         onclick: () => requestToggleTempWhitelistStateOfHighlightedTab(),
       });
       chrome.contextMenus.create({
+        id: 'whitelistPage',
         title: chrome.i18n.getMessage('js_context_never_suspend_page'),
         contexts: allContexts,
         onclick: () => whitelistHighlightedTab(true),
       });
       chrome.contextMenus.create({
+        id: 'whitelistDomain',
         title: chrome.i18n.getMessage('js_context_never_suspend_domain'),
         contexts: allContexts,
         onclick: () => whitelistHighlightedTab(false),

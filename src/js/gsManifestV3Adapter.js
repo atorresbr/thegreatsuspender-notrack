@@ -78,6 +78,23 @@ var gsManifestV3Adapter = (function() {
     };
   }
   
+  // Add chrome.extension compatibility
+  if (!chrome.extension) {
+    chrome.extension = {};
+    chrome.extension.getURL = chrome.runtime.getURL;
+    chrome.extension.getBackgroundPage = function() {
+      console.warn('chrome.extension.getBackgroundPage is not available in Manifest V3');
+      // Return self as a fallback
+      return self;
+    };
+    chrome.extension.getViews = function() {
+      console.warn('chrome.extension.getViews is not available in Manifest V3');
+      return [];
+    };
+    chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
+    chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
+  }
+  
   // Replace browserAction with action
   if (chrome.browserAction && !chrome.action) {
     chrome.action = {};
@@ -182,6 +199,25 @@ var gsManifestV3Adapter = (function() {
     });
   });
   
+  // Add contextMenus wrapper that ensures IDs are set
+  const originalContextMenusCreate = chrome.contextMenus.create;
+  chrome.contextMenus.create = function(createProperties, callback) {
+    // Ensure createProperties has an id
+    if (!createProperties.id) {
+      if (createProperties.title) {
+        // Create an id from the title by removing special chars and spaces
+        createProperties.id = createProperties.title
+          .toLowerCase()
+          .replace(/[^\w]/g, '_')
+          .replace(/_+/g, '_');
+      } else {
+        // Generate a random id if no title exists
+        createProperties.id = 'menu_' + Math.random().toString(36).substring(2, 15);
+      }
+    }
+    return originalContextMenusCreate(createProperties, callback);
+  };
+  
   return {
     saveState: saveState,
     loadState: loadState
@@ -190,4 +226,4 @@ var gsManifestV3Adapter = (function() {
 
 // Initialize the adapter right away
 gsManifestV3Adapter;
-console.log('Manifest V3 adapter loaded with localStorage polyfill');
+console.log('Manifest V3 adapter loaded with compatibility layers');
