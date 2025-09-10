@@ -17,15 +17,6 @@ var gsManifestV3Adapter = (function() {
       },
       
       getItem: function(key) {
-        if (!this._data[key]) {
-          // Need to sync from chrome.storage.local first time
-          const self = this;
-          chrome.storage.local.get(key, function(result) {
-            if (result[key]) {
-              self._data[key] = result[key];
-            }
-          });
-        }
         return this._data[key] === undefined ? null : this._data[key];
       },
       
@@ -49,7 +40,7 @@ var gsManifestV3Adapter = (function() {
       }
     };
     
-    // Preload all existing storage data
+    // Preload localStorage data from chrome.storage
     chrome.storage.local.get(null, function(items) {
       for (const key in items) {
         if (items.hasOwnProperty(key)) {
@@ -93,18 +84,17 @@ var gsManifestV3Adapter = (function() {
     };
     chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
     chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
+    
+    // Add inIncognitoContext property
+    Object.defineProperty(chrome.extension, 'inIncognitoContext', {
+      get: function() {
+        return false;
+      }
+    });
   }
   
   // Replace browserAction with action
-  if (chrome.browserAction && !chrome.action) {
-    chrome.action = {};
-    chrome.action.setIcon = chrome.browserAction.setIcon;
-    chrome.action.setTitle = chrome.browserAction.setTitle;
-    chrome.action.setBadgeText = chrome.browserAction.setBadgeText;
-    chrome.action.setBadgeBackgroundColor = chrome.browserAction.setBadgeBackgroundColor;
-    chrome.action.getPopup = chrome.browserAction.getPopup;
-    chrome.action.setPopup = chrome.browserAction.setPopup;
-  } else if (chrome.action && !chrome.browserAction) {
+  if (chrome.action && !chrome.browserAction) {
     chrome.browserAction = {};
     chrome.browserAction.setIcon = chrome.action.setIcon;
     chrome.browserAction.setTitle = chrome.action.setTitle;
@@ -114,16 +104,22 @@ var gsManifestV3Adapter = (function() {
     chrome.browserAction.setPopup = chrome.action.setPopup;
   }
   
-  // Helper to persist state
-  function saveState(key, value) {
-    chrome.storage.local.set({['gsm3_' + key]: value});
-  }
-  
-  function loadState(key, callback) {
-    chrome.storage.local.get(['gsm3_' + key], function(result) {
-      callback(result['gsm3_' + key]);
-    });
-  }
+  // Add contextMenus wrapper that ensures IDs are set
+  const originalContextMenusCreate = chrome.contextMenus.create;
+  chrome.contextMenus.create = function(createProperties, callback) {
+    // Ensure createProperties has an id
+    if (!createProperties.id) {
+      // Generate a unique ID using title and context
+      const titlePart = createProperties.title 
+        ? createProperties.title.substring(0, 20).replace(/[^\w]/g, '_')
+        : '';
+      const contextPart = createProperties.contexts 
+        ? createProperties.contexts.join('_')
+        : '';
+      createProperties.id = `${titlePart}_${contextPart}_${Math.random().toString(36).substring(2, 8)}`;
+    }
+    return originalContextMenusCreate(createProperties, callback);
+  };
   
   // Store intervals/timeouts to clear on service worker shutdown
   var registeredIntervals = [];
@@ -199,28 +195,15 @@ var gsManifestV3Adapter = (function() {
     });
   });
   
-  // Add contextMenus wrapper that ensures IDs are set
-  const originalContextMenusCreate = chrome.contextMenus.create;
-  chrome.contextMenus.create = function(createProperties, callback) {
-    // Ensure createProperties has an id
-    if (!createProperties.id) {
-      if (createProperties.title) {
-        // Create an id from the title by removing special chars and spaces
-        createProperties.id = createProperties.title
-          .toLowerCase()
-          .replace(/[^\w]/g, '_')
-          .replace(/_+/g, '_');
-      } else {
-        // Generate a random id if no title exists
-        createProperties.id = 'menu_' + Math.random().toString(36).substring(2, 15);
-      }
-    }
-    return originalContextMenusCreate(createProperties, callback);
-  };
-  
   return {
-    saveState: saveState,
-    loadState: loadState
+    saveState: function(key, value) {
+      chrome.storage.local.set({['gsm3_' + key]: value});
+    },
+    loadState: function(key, callback) {
+      chrome.storage.local.get(['gsm3_' + key], function(result) {
+        callback(result['gsm3_' + key]);
+      });
+    }
   };
 })();
 
