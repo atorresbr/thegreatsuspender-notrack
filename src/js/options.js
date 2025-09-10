@@ -17,6 +17,25 @@
     }
   }
 
+// Fix for options page in Manifest V3
+(function() {
+  console.log("Options page initializing...");
+
+  // Get background page safely
+  function getBackgroundPage(callback) {
+    if (chrome.runtime && chrome.runtime.getBackgroundPage) {
+      chrome.runtime.getBackgroundPage(function(bg) {
+        callback(bg);
+      });
+    } else if (chrome.extension && chrome.extension.getBackgroundPage) {
+      const bg = getBackgroundPage(function(backgroundPage) {;
+      callback(bg);
+    } else {
+      console.error("Cannot get background page!");
+      callback(null);
+    }
+  }
+
 /*global chrome, gsStorage, gsChrome, gsUtils */
 (function(global) {
   try {
@@ -294,4 +313,5 @@
     initSettings,
   };
 })(this);
+})();
 })();
