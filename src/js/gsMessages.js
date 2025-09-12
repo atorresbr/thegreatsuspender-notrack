@@ -130,7 +130,7 @@ var gsMessages = {
       if (callback) callback('tabId not specified');
       return;
     }
-    chrome.tabs.executeScript(tabId, { file: scriptPath }, function(response) {
+    chrome.scripting.executeScript(tabId, { file: scriptPath }, function(response) {
       if (chrome.runtime.lastError) {
         if (callback) callback(chrome.runtime.lastError);
       } else {
@@ -144,7 +144,7 @@ var gsMessages = {
       if (callback) callback('tabId not specified');
       return;
     }
-    chrome.tabs.executeScript(tabId, { code: codeString }, function(response) {
+    chrome.scripting.executeScript(tabId, { code: codeString }, function(response) {
       if (chrome.runtime.lastError) {
         if (callback) callback(chrome.runtime.lastError);
       } else {

@@ -1,4 +1,200 @@
 /*global chrome, localStorage, tgs, gsStorage, gsIndexedDb, gsUtils, gsChrome, gsTabCheckManager, gsTabDiscardManager */
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    return null;
+  };
+}
+
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    return null;
+  };
+}
+
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Polyfill for chrome.extension.isAllowedFileSchemeAccess
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    // In Manifest V3, file scheme access is determined differently
+    // For now, assume it's not allowed and handle gracefully
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+// Polyfill for chrome.extension.getBackgroundPage
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    // In Manifest V3 with service workers, there's no background page
+    console.warn('chrome.extension.getBackgroundPage not available in Manifest V3');
+    return null;
+  };
+}
+
+// Polyfill for chrome.extension.getURL
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Polyfill for chrome.extension.isAllowedFileSchemeAccess
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    // In Manifest V3, file scheme access is determined differently
+    // For now, assume it's not allowed and handle gracefully
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+// Polyfill for chrome.extension.getBackgroundPage
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    // In Manifest V3 with service workers, there's no background page
+    console.warn('chrome.extension.getBackgroundPage not available in Manifest V3');
+    return null;
+  };
+}
+
+// Polyfill for chrome.extension.getURL
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Polyfill for chrome.extension.isAllowedFileSchemeAccess
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    // In Manifest V3, file scheme access is determined differently
+    // For now, assume it's not allowed and handle gracefully
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+// Polyfill for chrome.extension.getBackgroundPage
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    // In Manifest V3 with service workers, there's no background page
+    console.warn('chrome.extension.getBackgroundPage not available in Manifest V3');
+    return null;
+  };
+}
+
+// Polyfill for chrome.extension.getURL
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Polyfill for chrome.extension.isAllowedFileSchemeAccess
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    // In Manifest V3, file scheme access is determined differently
+    // For now, assume it's not allowed and handle gracefully
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+// Polyfill for chrome.extension.getBackgroundPage
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    // In Manifest V3 with service workers, there's no background page
+    console.warn('chrome.extension.getBackgroundPage not available in Manifest V3');
+    return null;
+  };
+}
+
+// Polyfill for chrome.extension.getURL
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
+// Manifest V3 compatibility for gsSession.js
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Polyfill for chrome.extension.isAllowedFileSchemeAccess
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    // In Manifest V3, file scheme access is determined differently
+    // For now, assume it's not allowed and handle gracefully
+    if (typeof callback === 'function') {
+      callback(false);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+// Polyfill for chrome.extension.getBackgroundPage
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    // In Manifest V3 with service workers, there's no background page
+    console.warn('chrome.extension.getBackgroundPage not available in Manifest V3');
+    return null;
+  };
+}
+
+// Polyfill for chrome.extension.getURL
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = chrome.runtime.getURL;
+}
 // eslint-disable-next-line no-unused-vars
 var gsSession = (function() {
   'use strict';

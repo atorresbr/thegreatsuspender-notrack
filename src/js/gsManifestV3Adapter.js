@@ -130,10 +130,10 @@ var gsManifestV3Adapter = (function() {
     });
   }
   
-  // FIX 2: Add chrome.tabs.executeScript compatibility with chrome.scripting
+  // FIX 2: Add chrome.scripting.executeScript compatibility with chrome.scripting
   // This requires the "scripting" permission in manifest.json
-  if (chrome.tabs && !chrome.tabs.executeScript && chrome.scripting) {
-    chrome.tabs.executeScript = function(tabId, details, callback) {
+  if (chrome.tabs && !chrome.scripting.executeScript && chrome.scripting) {
+    chrome.scripting.executeScript = function(tabId, details, callback) {
       // Handle the case where tabId is actually the details object (optional tabId signature)
       if (typeof tabId === 'object' && !details) {
         details = tabId;
@@ -169,14 +169,14 @@ var gsManifestV3Adapter = (function() {
   }
   
   // Replace browserAction with action
-  if (chrome.action && !chrome.browserAction) {
-    chrome.browserAction = {};
-    chrome.browserAction.setIcon = chrome.action.setIcon;
-    chrome.browserAction.setTitle = chrome.action.setTitle;
-    chrome.browserAction.setBadgeText = chrome.action.setBadgeText;
-    chrome.browserAction.setBadgeBackgroundColor = chrome.action.setBadgeBackgroundColor;
-    chrome.browserAction.getPopup = chrome.action.getPopup;
-    chrome.browserAction.setPopup = chrome.action.setPopup;
+  if (chrome.action && !chrome.action) {
+    chrome.action = {};
+    chrome.action.setIcon = chrome.action.setIcon;
+    chrome.action.setTitle = chrome.action.setTitle;
+    chrome.action.setBadgeText = chrome.action.setBadgeText;
+    chrome.action.setBadgeBackgroundColor = chrome.action.setBadgeBackgroundColor;
+    chrome.action.getPopup = chrome.action.getPopup;
+    chrome.action.setPopup = chrome.action.setPopup;
   }
   
   // Store context menu click handlers
@@ -248,3 +248,182 @@ var gsManifestV3Adapter = (function() {
 // Initialize the adapter right away
 gsManifestV3Adapter;
 console.log('Manifest V3 adapter loaded with compatibility layers');
+
+// Additional Manifest V3 compatibility
+console.log('Adding enhanced Manifest V3 compatibility...');
+
+// Ensure chrome.extension exists and has all needed methods
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Enhanced file scheme access polyfill
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    console.log('Polyfill: chrome.extension.isAllowedFileSchemeAccess called');
+    // For security in Manifest V3, assume file access is not allowed
+    const result = false;
+    if (typeof callback === 'function') {
+      setTimeout(() => callback(result), 0);
+    }
+    return Promise.resolve(result);
+  };
+}
+
+// Enhanced background page polyfill
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    console.log('Polyfill: chrome.extension.getBackgroundPage called');
+    return null; // No background page in service worker context
+  };
+}
+
+// Enhanced getURL polyfill
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = function(path) {
+    console.log('Polyfill: chrome.extension.getURL called with:', path);
+    return chrome.runtime.getURL(path);
+  };
+}
+
+// Polyfill for chrome.extension.sendMessage (if needed)
+if (!chrome.extension.sendMessage) {
+  chrome.extension.sendMessage = function(extensionId, message, options, responseCallback) {
+    console.log('Polyfill: chrome.extension.sendMessage called');
+    // If extensionId is actually the message (common pattern)
+    if (typeof extensionId === 'object' && typeof message === 'function') {
+      return chrome.runtime.sendMessage(extensionId, message);
+    }
+    return chrome.runtime.sendMessage(extensionId, message, options, responseCallback);
+  };
+}
+
+console.log('Enhanced Manifest V3 compatibility loaded');
+
+// Additional Manifest V3 compatibility
+console.log('Adding enhanced Manifest V3 compatibility...');
+
+// Ensure chrome.extension exists and has all needed methods
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Enhanced file scheme access polyfill
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    console.log('Polyfill: chrome.extension.isAllowedFileSchemeAccess called');
+    // For security in Manifest V3, assume file access is not allowed
+    const result = false;
+    if (typeof callback === 'function') {
+      setTimeout(() => callback(result), 0);
+    }
+    return Promise.resolve(result);
+  };
+}
+
+// Enhanced background page polyfill
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    console.log('Polyfill: chrome.extension.getBackgroundPage called');
+    return null; // No background page in service worker context
+  };
+}
+
+// Enhanced getURL polyfill
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = function(path) {
+    console.log('Polyfill: chrome.extension.getURL called with:', path);
+    return chrome.runtime.getURL(path);
+  };
+}
+
+// Polyfill for chrome.extension.sendMessage (if needed)
+if (!chrome.extension.sendMessage) {
+  chrome.extension.sendMessage = function(extensionId, message, options, responseCallback) {
+    console.log('Polyfill: chrome.extension.sendMessage called');
+    // If extensionId is actually the message (common pattern)
+    if (typeof extensionId === 'object' && typeof message === 'function') {
+      return chrome.runtime.sendMessage(extensionId, message);
+    }
+    return chrome.runtime.sendMessage(extensionId, message, options, responseCallback);
+  };
+}
+
+// Service worker error handling
+if (typeof self !== 'undefined' && self.addEventListener) {
+  self.addEventListener('error', function(event) {
+    console.error('Enhanced adapter - Service worker error:', event.error);
+    event.preventDefault();
+  });
+  
+  self.addEventListener('unhandledrejection', function(event) {
+    console.warn('Enhanced adapter - Unhandled rejection:', event.reason);
+    event.preventDefault();
+  });
+}
+
+console.log('Enhanced Manifest V3 compatibility loaded');
+
+// Additional Manifest V3 compatibility
+console.log('Adding enhanced Manifest V3 compatibility...');
+
+// Ensure chrome.extension exists and has all needed methods
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+// Enhanced file scheme access polyfill
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    console.log('Polyfill: chrome.extension.isAllowedFileSchemeAccess called');
+    // For security in Manifest V3, assume file access is not allowed
+    const result = false;
+    if (typeof callback === 'function') {
+      setTimeout(() => callback(result), 0);
+    }
+    return Promise.resolve(result);
+  };
+}
+
+// Enhanced background page polyfill
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    console.log('Polyfill: chrome.extension.getBackgroundPage called');
+    return null; // No background page in service worker context
+  };
+}
+
+// Enhanced getURL polyfill
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = function(path) {
+    console.log('Polyfill: chrome.extension.getURL called with:', path);
+    return chrome.runtime.getURL(path);
+  };
+}
+
+// Polyfill for chrome.extension.sendMessage (if needed)
+if (!chrome.extension.sendMessage) {
+  chrome.extension.sendMessage = function(extensionId, message, options, responseCallback) {
+    console.log('Polyfill: chrome.extension.sendMessage called');
+    // If extensionId is actually the message (common pattern)
+    if (typeof extensionId === 'object' && typeof message === 'function') {
+      return chrome.runtime.sendMessage(extensionId, message);
+    }
+    return chrome.runtime.sendMessage(extensionId, message, options, responseCallback);
+  };
+}
+
+// Service worker error handling
+if (typeof self !== 'undefined' && self.addEventListener) {
+  self.addEventListener('error', function(event) {
+    console.error('Enhanced adapter - Service worker error:', event.error);
+    event.preventDefault();
+  });
+  
+  self.addEventListener('unhandledrejection', function(event) {
+    console.warn('Enhanced adapter - Unhandled rejection:', event.reason);
+    event.preventDefault();
+  });
+}
+
+console.log('Enhanced Manifest V3 compatibility loaded');

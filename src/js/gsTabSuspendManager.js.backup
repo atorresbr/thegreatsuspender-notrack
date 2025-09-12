@@ -1,3 +1,10 @@
+// Auto-patched by fix.sh
+// Ensure core objects are available
+if (!self.gsTabQueue) {
+  console.warn("gsTabQueue not found in gsTabSuspendManager, using registry");
+  self.gsTabQueue = GS_REGISTRY ? GS_REGISTRY.safeGet("gsTabQueue") : { getQueuedTabDetails: function() { return null; } };
+}
+
 /*global html2canvas, domtoimage, tgs, gsFavicon, gsMessages, gsStorage, gsUtils, gsChrome, gsIndexedDb, gsTabDiscardManager, gsTabCheckManager, GsTabQueue */
 // eslint-disable-next-line no-unused-vars
 var gsTabSuspendManager = (function() {
@@ -658,5 +665,10 @@ var gsTabSuspendManager = (function() {
     executeTabSuspension,
     getQueuedTabDetails,
   };
+// Register with global registry
+if (typeof GS_REGISTRY !== "undefined") {
+  GS_REGISTRY.register("gsTabSuspendManager", gsTabSuspendManager);
+}
+
 })();
 

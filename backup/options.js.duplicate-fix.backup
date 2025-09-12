@@ -1,0 +1,1121 @@
+/**
+ * Enhanced Options page script with GRADIENT GLASS EFFECTS and FIXED theme application
+ */
+(function() {
+  'use strict';
+
+  console.log('Options page with GRADIENT GLASS EFFECTS initializing...');
+
+  // Default options
+  const defaultOptions = {
+    'suspendTime': '60',
+    'dontSuspendPinned': true,
+    'dontSuspendForms': true,
+    'dontSuspendAudio': true,
+    'addContextMenu': true,
+    'syncSettings': false,
+    'whitelistUrls': '',
+    'keepTabsOnReload': true,
+    'autoRestoreTabs': true
+  };
+
+  // Theme system with FIXED gradients
+  let selectedTheme = 'purple';
+  const themeGradients = {
+    purple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    ocean: 'linear-gradient(135deg, #667db6 0%, #0082c8 100%)',
+    sunset: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+    forest: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
+    fire: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+    lavender: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    cosmic: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    emerald: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    rose: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    sky: 'linear-gradient(135deg, #74b9ff 0%, #0084e3 100%)',
+    peach: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+    mint: 'linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%)',
+    golden: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)',
+    berry: 'linear-gradient(135deg, #8360c3 0%, #2ebf91 100%)',
+    coral: 'linear-gradient(135deg, #ff9a56 0%, #ff6b95 100%)',
+    aurora: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+    dark: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+    midnight: 'linear-gradient(135deg, #0f0f23 0%, #2d1b69 100%)'
+  };
+
+  // FIXED Light themes (for DARK text) - more comprehensive detection
+  const lightThemes = ['sunset', 'lavender', 'peach', 'mint', 'coral', 'golden'];
+  // Dark themes (for glass effect adjustment)
+  const darkThemes = ['dark', 'midnight', 'forest', 'purple', 'ocean', 'cosmic', 'emerald', 'fire', 'berry', 'sky', 'aurora', 'rose'];
+
+  let backgroundPage = null;
+  let systemBehavior = 'force';
+
+  // Initialize
+  async function init() {
+    console.log('Initializing options page with GRADIENT GLASS EFFECTS...');
+    
+    // Try to connect to background
+    await initializeBackgroundConnection();
+    
+    // Load settings
+    await loadAllSettings();
+    
+    // Load theme settings
+    await loadThemeSettings();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Set up system theme behavior monitoring
+    setupSystemBehaviorMonitoring();
+    
+    // Set up tab preservation controls
+    setupTabPreservationControls();
+    
+    console.log('Options page initialized with GRADIENT GLASS EFFECTS');
+  }
+
+  // Try to get background page or set up messaging
+  async function initializeBackgroundConnection() {
+    if (chrome.extension && chrome.extension.getBackgroundPage) {
+      try {
+        backgroundPage = chrome.extension.getBackgroundPage();
+        if (backgroundPage && backgroundPage.gsStorage) {
+          console.log('Connected to background page directly');
+          return;
+        }
+      } catch (e) {
+        console.log('Direct background access failed:', e);
+      }
+    }
+    console.log('Using chrome.storage for settings');
+    backgroundPage = null;
+  }
+
+  // Load all settings
+  async function loadAllSettings() {
+    const optionElements = document.querySelectorAll('[data-option]');
+    
+    for (const element of optionElements) {
+      const optionKey = element.getAttribute('data-option');
+      const value = await getSetting(optionKey);
+      
+      if (element.type === 'checkbox') {
+        element.checked = value;
+      } else {
+        element.value = value;
+      }
+    }
+  }
+
+  // Get a setting value
+  async function getSetting(key) {
+    // Try background page first
+    if (backgroundPage && backgroundPage.gsStorage && backgroundPage.gsStorage.getOption) {
+      try {
+        return await backgroundPage.gsStorage.getOption(key);
+      } catch (error) {
+        console.warn('Error getting setting from background:', error);
+      }
+    }
+    
+    // Fall back to chrome.storage
+    return new Promise((resolve) => {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get([key], (result) => {
+          if (chrome.runtime.lastError) {
+            console.warn('Storage error:', chrome.runtime.lastError);
+            resolve(defaultOptions[key]);
+          } else {
+            resolve(result[key] !== undefined ? result[key] : defaultOptions[key]);
+          }
+        });
+      } else {
+        resolve(defaultOptions[key]);
+      }
+    });
+  }
+
+  // Set a setting value
+  async function setSetting(key, value) {
+    // Try background page first
+    if (backgroundPage && backgroundPage.gsStorage && backgroundPage.gsStorage.setOption) {
+      try {
+        await backgroundPage.gsStorage.setOption(key, value);
+        showSaveStatus();
+        return;
+      } catch (error) {
+        console.warn('Error setting via background:', error);
+      }
+    }
+    
+    // Fall back to chrome.storage
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ [key]: value }, () => {
+        if (!chrome.runtime.lastError) {
+          showSaveStatus();
+        }
+      });
+    }
+  }
+
+  // FIXED System behavior monitoring
+  function setupSystemBehaviorMonitoring() {
+    // Monitor system theme changes
+    if (window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addListener(function(e) {
+        console.log('System theme changed:', e.matches ? 'dark' : 'light');
+        if (systemBehavior === 'auto') {
+          applySystemTheme();
+        }
+      });
+    }
+
+    // Monitor time-based changes (check every minute)
+    setInterval(() => {
+      if (systemBehavior === 'time') {
+        applySystemTheme();
+      }
+    }, 60000);
+  }
+
+  // Set up tab preservation controls
+  function setupTabPreservationControls() {
+    const backupBtn = document.getElementById('backupTabs');
+    const restoreBtn = document.getElementById('restoreTabs');
+
+    if (backupBtn) {
+      backupBtn.addEventListener('click', function() {
+        chrome.runtime.sendMessage({ action: 'backupTabs' }, function(response) {
+          if (response && response.success) {
+            showTabPreservationStatus('✅ Backed up ' + response.count + ' suspended tabs!');
+          } else {
+            showTabPreservationStatus('❌ Backup failed. Please try again.');
+          }
+        });
+      });
+    }
+
+    if (restoreBtn) {
+      restoreBtn.addEventListener('click', function() {
+        chrome.runtime.sendMessage({ action: 'restoreTabs' }, function(response) {
+          if (response && response.success) {
+            showTabPreservationStatus('✅ Restored backed up tabs!');
+          } else {
+            showTabPreservationStatus('❌ Restore failed. No tabs to restore.');
+          }
+        });
+      });
+    }
+
+    // Show current suspended tab count
+    chrome.runtime.sendMessage({ action: 'getSuspendedCount' }, function(response) {
+      if (response && response.count > 0) {
+        showTabPreservationStatus('📊 Currently tracking ' + response.count + ' suspended tabs');
+      }
+    });
+  }
+
+  // Show tab preservation status
+  function showTabPreservationStatus(message) {
+    const status = document.getElementById('themeStatus');
+    if (status) {
+      status.textContent = message;
+      status.className = 'theme-status success';
+      setTimeout(() => {
+        status.textContent = '';
+        status.className = 'theme-status';
+      }, 4000);
+    }
+  }
+
+  // Apply system-based theme
+  function applySystemTheme() {
+    let effectiveTheme = selectedTheme;
+    let effectiveGradient = themeGradients[selectedTheme];
+
+    if (systemBehavior === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        if (!darkThemes.includes(selectedTheme)) {
+          effectiveTheme = 'dark';
+          effectiveGradient = themeGradients.dark;
+        }
+      }
+    } else if (systemBehavior === 'time') {
+      const hour = new Date().getHours();
+      if (hour < 6 || hour > 20) { // Night time (8 PM to 6 AM)
+        if (!darkThemes.includes(selectedTheme)) {
+          effectiveTheme = 'midnight';
+          effectiveGradient = themeGradients.midnight;
+        }
+      }
+    }
+
+    console.log('Applying system theme:', effectiveTheme, 'behavior:', systemBehavior);
+    
+    // Apply the effective theme
+    applyThemeToOptionsPage(effectiveTheme, effectiveGradient);
+    
+    // Update storage with effective theme
+    chrome.storage.local.set({
+      effectiveTheme: effectiveTheme,
+      effectiveGradient: effectiveGradient
+    });
+
+    // Apply to suspended tabs
+    applyThemeToSuspendedTabs(effectiveTheme, effectiveGradient);
+  }
+
+  // Theme system functions
+  async function loadThemeSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['selectedTheme', 'systemBehavior'], (result) => {
+        selectedTheme = result.selectedTheme || 'purple';
+        systemBehavior = result.systemBehavior || 'force';
+        
+        console.log('Loaded theme settings:', { selectedTheme, systemBehavior });
+        
+        // Update UI
+        document.querySelectorAll('.theme-option').forEach(option => {
+          option.classList.remove('selected');
+          if (option.dataset.theme === selectedTheme) {
+            option.classList.add('selected');
+          }
+        });
+        
+        const systemBehaviorSelect = document.getElementById('systemBehavior');
+        if (systemBehaviorSelect) {
+          systemBehaviorSelect.value = systemBehavior;
+        }
+        
+        // Apply theme based on system behavior
+        applySystemTheme();
+        updateThemePreview();
+        resolve();
+      });
+    });
+  }
+
+  function updateThemePreview() {
+    const preview = document.getElementById('themePreview');
+    if (preview) {
+      const gradient = themeGradients[selectedTheme];
+      preview.style.setProperty('--preview-gradient', gradient);
+    }
+  }
+
+  // FIXED theme application with GRADIENT GLASS EFFECTS
+  function applyThemeToOptionsPage(themeName = selectedTheme, gradient = themeGradients[selectedTheme]) {
+    console.log("Applying ENHANCED gradient glass theme to options page:", themeName);
+    
+    document.documentElement.style.setProperty("--options-current-gradient", gradient);
+    document.body.classList.add("options-theme-applied");
+    
+    document.body.classList.remove("light-theme", "dark-theme");
+    document.body.className = document.body.className.replace(/theme-\w+/g, "");
+    
+    document.body.classList.add("theme-" + themeName);
+    
+    if (lightThemes.includes(themeName)) {
+      document.body.classList.add("light-theme");
+    } else {
+      document.body.classList.add("dark-theme");
+    }
+    
+    document.body.style.background = gradient;
+    document.body.style.backgroundAttachment = "fixed";
+    document.body.style.transition = "background 0.5s ease, color 0.5s ease";
+    
+    console.log("ENHANCED gradient glass theme applied to options page:", themeName);
+  }
+
+  // FIXED theme application to ALL suspended tabs
+  function applyThemeToSuspendedTabs(themeName = selectedTheme, gradient = themeGradients[selectedTheme]) {
+    console.log('Applying GRADIENT GLASS theme to suspended tabs:', themeName);
+    
+    // Update storage first
+    chrome.storage.local.set({
+      selectedTheme: selectedTheme,
+      themeGradient: gradient,
+      effectiveTheme: themeName,
+      effectiveGradient: gradient,
+      systemBehavior: systemBehavior
+    }, () => {
+      // Query all tabs and send message to suspended ones
+      chrome.tabs.query({}, function(tabs) {
+        tabs.forEach(tab => {
+          if (tab.url && (tab.url.includes('suspended.html') || tab.url.includes('suspended_tab'))) {
+            console.log('Sending GRADIENT GLASS theme update to tab:', tab.id, themeName);
+            // Send message to suspended tab to update theme
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'updateTheme',
+              theme: themeName,
+              gradient: gradient,
+              isLight: lightThemes.includes(themeName)
+            }, function(response) {
+              if (chrome.runtime.lastError) {
+                console.log('Could not send theme message to tab:', tab.id, chrome.runtime.lastError.message);
+              } else {
+                console.log('GRADIENT GLASS theme message sent successfully to tab:', tab.id);
+              }
+            });
+          }
+        });
+      });
+    });
+  }
+
+  function saveThemeSettings() {
+    const systemBehaviorSelect = document.getElementById('systemBehavior');
+    systemBehavior = systemBehaviorSelect ? systemBehaviorSelect.value : 'force';
+    
+    console.log('Saving GRADIENT GLASS theme settings:', { selectedTheme, systemBehavior });
+    
+    chrome.storage.local.set({
+      selectedTheme: selectedTheme,
+      systemBehavior: systemBehavior,
+      themeGradient: themeGradients[selectedTheme]
+    }, () => {
+      const status = document.getElementById('themeStatus');
+      if (status) {
+        status.textContent = '✅ GRADIENT GLASS theme saved and applied!';
+        status.className = 'theme-status success';
+        setTimeout(() => {
+          status.textContent = '';
+          status.className = 'theme-status';
+        }, 3000);
+      }
+      
+      // Apply system theme after saving
+      applySystemTheme();
+    });
+  }
+
+  // Set up event listeners
+  function setupEventListeners() {
+    // Regular option elements
+    const optionElements = document.querySelectorAll('[data-option]');
+    
+    optionElements.forEach((element) => {
+      element.addEventListener('change', async function() {
+        const optionKey = this.getAttribute('data-option');
+        let value;
+        
+        if (this.type === 'checkbox') {
+          value = this.checked;
+        } else {
+          value = this.value;
+        }
+        
+        await setSetting(optionKey, value);
+      });
+    });
+
+    // Theme selection with INSTANT GRADIENT GLASS application
+    document.querySelectorAll('.theme-option').forEach(option => {
+      option.addEventListener('click', function() {
+        document.querySelectorAll('.theme-option').forEach(opt => opt.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedTheme = this.dataset.theme;
+        
+        // INSTANT GRADIENT GLASS application
+        updateThemePreview();
+        saveThemeSettings();
+        
+        console.log('GRADIENT GLASS theme changed to:', selectedTheme);
+      });
+    });
+
+    // System behavior change with INSTANT application
+    const systemBehaviorSelect = document.getElementById('systemBehavior');
+    if (systemBehaviorSelect) {
+      systemBehaviorSelect.addEventListener('change', function() {
+        systemBehavior = this.value;
+        console.log('System behavior changed to:', systemBehavior);
+        saveThemeSettings();
+      });
+    }
+  }
+
+  // Show save status
+  function showSaveStatus() {
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      status.classList.add('show');
+      setTimeout(() => {
+        status.classList.remove('show');
+      }, 2000);
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+  // SESSION MANAGEMENT FUNCTIONS
+  let currentSessionId = null;
+
+  // Initialize session management
+  async function initializeSessionManagement() {
+    console.log('Initializing session management...');
+    
+    // Get current session ID
+    chrome.runtime.sendMessage({ action: 'getCurrentSessionId' }, (response) => {
+      if (response && response.success) {
+        currentSessionId = response.sessionId;
+        document.getElementById('currentSessionId').textContent = currentSessionId;
+      }
+    });
+    
+    // Update session info
+    updateSessionInfo();
+    
+    // Load sessions and backups
+    loadSessionsList();
+    loadSessionBackups();
+    
+    // Set up event listeners
+    setupSessionEventListeners();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+      updateSessionInfo();
+      loadSessionsList();
+      loadSessionBackups();
+    }, 30000);
+  }
+
+  // Update session information display
+  function updateSessionInfo() {
+    chrome.runtime.sendMessage({ action: 'getSuspendedCount' }, (response) => {
+      if (response && response.count !== undefined) {
+        document.getElementById('suspendedTabCount').textContent = response.count;
+      }
+    });
+  }
+
+  // Load sessions list for restore dropdown
+  function loadSessionsList() {
+    chrome.runtime.sendMessage({ action: 'getAllSessions' }, (response) => {
+      if (response && response.success) {
+        const sessionSelect = document.getElementById('sessionSelect');
+        const sessions = response.sessions;
+        
+        // Clear existing options except first
+        while (sessionSelect.children.length > 1) {
+          sessionSelect.removeChild(sessionSelect.lastChild);
+        }
+        
+        // Add sessions to dropdown
+        Object.values(sessions).forEach(session => {
+          if (session.id !== currentSessionId) {
+            const option = document.createElement('option');
+            option.value = session.id;
+            option.textContent = `${session.id} (${session.tabCount} tabs) - ${new Date(session.created).toLocaleString()}`;
+            sessionSelect.appendChild(option);
+          }
+        });
+      }
+    });
+  }
+
+  // Load session backups
+  function loadSessionBackups() {
+    chrome.runtime.sendMessage({ action: 'getSessionBackups' }, (response) => {
+      if (response && response.success) {
+        const backupsList = document.getElementById('backupsList');
+        const backups = response.backups;
+        
+        if (Object.keys(backups).length === 0) {
+          backupsList.innerHTML = '<p class="no-backups">No session backups found.</p>';
+          return;
+        }
+        
+        backupsList.innerHTML = '';
+        
+        Object.values(backups).forEach(backup => {
+          const backupItem = document.createElement('div');
+          backupItem.className = 'backup-item';
+          backupItem.innerHTML = `
+            <div class="backup-info">
+              <div class="backup-name">${backup.name}</div>
+              <div class="backup-details">
+                ${backup.tabCount} tabs • Created: ${new Date(backup.created).toLocaleString()}
+                <br>Original Session: ${backup.originalSessionId}
+              </div>
+            </div>
+            <div class="backup-actions">
+              <button onclick="restoreSessionBackup('${backup.id}')">🔄 Restore</button>
+              <button onclick="exportSessionBackup('${backup.id}')">📤 Export</button>
+              <button onclick="deleteSessionBackup('${backup.id}')">🗑️ Delete</button>
+            </div>
+          `;
+          backupsList.appendChild(backupItem);
+        });
+      }
+    });
+  }
+
+  // Set up session management event listeners
+  function setupSessionEventListeners() {
+    // Copy session ID
+    document.getElementById('copySessionId').addEventListener('click', () => {
+      navigator.clipboard.writeText(currentSessionId).then(() => {
+        showSessionStatus('✅ Session ID copied to clipboard!');
+      });
+    });
+
+    // Backup current session
+    document.getElementById('backupSession').addEventListener('click', () => {
+      const backupName = document.getElementById('backupName').value.trim();
+      
+      chrome.runtime.sendMessage({ 
+        action: 'backupCurrentSession', 
+        backupName: backupName || undefined 
+      }, (response) => {
+        if (response && response.success) {
+          showSessionStatus(`✅ Session backed up: ${response.backup.name}`);
+          document.getElementById('backupName').value = '';
+          loadSessionBackups();
+        } else {
+          showSessionStatus('❌ Failed to backup session: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    });
+
+    // Restore session
+    document.getElementById('restoreSession').addEventListener('click', () => {
+      const sessionId = document.getElementById('sessionSelect').value;
+      if (!sessionId) {
+        showSessionStatus('❌ Please select a session to restore');
+        return;
+      }
+      
+      chrome.runtime.sendMessage({ 
+        action: 'restoreSession', 
+        sessionId: sessionId 
+      }, (response) => {
+        if (response && response.success) {
+          showSessionStatus(`✅ Restored ${response.result.tabCount} tabs from session`);
+        } else {
+          showSessionStatus('❌ Failed to restore session: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    });
+
+    // Create new session
+    document.getElementById('newSession').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'createNewSession' }, (response) => {
+        if (response && response.success) {
+          currentSessionId = response.sessionId;
+          document.getElementById('currentSessionId').textContent = currentSessionId;
+          showSessionStatus(`✅ Created new session: ${currentSessionId}`);
+          loadSessionsList();
+        } else {
+          showSessionStatus('❌ Failed to create new session');
+        }
+      });
+    });
+
+    // Refresh sessions
+    document.getElementById('refreshSessions').addEventListener('click', () => {
+      loadSessionsList();
+      loadSessionBackups();
+      updateSessionInfo();
+      showSessionStatus('✅ Session list refreshed');
+    });
+
+    // Export current session
+    document.getElementById('exportSession').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'exportSession' }, (response) => {
+        if (response && response.success) {
+          downloadSessionFile(response.data, `session-${currentSessionId}.json`);
+          showSessionStatus('✅ Session exported successfully');
+        } else {
+          showSessionStatus('❌ Failed to export session: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    });
+
+    // Export all sessions
+    document.getElementById('exportAllSessions').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'getAllSessions' }, (response) => {
+        if (response && response.success) {
+          const exportData = {
+            exportVersion: '1.0',
+            exportDate: new Date().toISOString(),
+            sessions: response.sessions
+          };
+          downloadSessionFile(JSON.stringify(exportData, null, 2), `all-sessions-${Date.now()}.json`);
+          showSessionStatus('✅ All sessions exported successfully');
+        } else {
+          showSessionStatus('❌ Failed to export all sessions');
+        }
+      });
+    });
+
+    // Import session file
+    document.getElementById('importSession').addEventListener('click', () => {
+      document.getElementById('importFile').click();
+    });
+
+    document.getElementById('importFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          importSessionData(e.target.result);
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Import from text
+    document.getElementById('importFromText').addEventListener('click', () => {
+      const jsonData = document.getElementById('importText').value.trim();
+      if (jsonData) {
+        importSessionData(jsonData);
+      } else {
+        showSessionStatus('❌ Please paste session JSON data');
+      }
+    });
+  }
+
+  // Import session data
+  function importSessionData(jsonData) {
+    chrome.runtime.sendMessage({ 
+      action: 'importSession', 
+      jsonData: jsonData 
+    }, (response) => {
+      if (response && response.success) {
+        showSessionStatus(`✅ Session imported: ${response.session.id}`);
+        document.getElementById('importText').value = '';
+        loadSessionsList();
+      } else {
+        showSessionStatus('❌ Failed to import session: ' + (response?.error || 'Unknown error'));
+      }
+    });
+  }
+
+  // Download session file
+  function downloadSessionFile(data, filename) {
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Restore session backup
+  window.restoreSessionBackup = function(backupId) {
+    chrome.runtime.sendMessage({ 
+      action: 'restoreSession', 
+      sessionId: backupId 
+    }, (response) => {
+      if (response && response.success) {
+        showSessionStatus(`✅ Restored backup with ${response.result.tabCount} tabs`);
+      } else {
+        showSessionStatus('❌ Failed to restore backup: ' + (response?.error || 'Unknown error'));
+      }
+    });
+  };
+
+  // Export session backup
+  window.exportSessionBackup = function(backupId) {
+    chrome.storage.local.get(['sessionBackups'], (result) => {
+      const backup = result.sessionBackups[backupId];
+      if (backup) {
+        const exportData = JSON.stringify(backup, null, 2);
+        downloadSessionFile(exportData, `backup-${backup.name.replace(/\s+/g, '-')}.json`);
+        showSessionStatus('✅ Backup exported successfully');
+      }
+    });
+  };
+
+  // Delete session backup
+  window.deleteSessionBackup = function(backupId) {
+    if (confirm('Are you sure you want to delete this backup?')) {
+      chrome.runtime.sendMessage({ 
+        action: 'deleteSessionBackup', 
+        backupId: backupId 
+      }, (response) => {
+        if (response && response.success) {
+          showSessionStatus('✅ Backup deleted');
+          loadSessionBackups();
+        } else {
+          showSessionStatus('❌ Failed to delete backup');
+        }
+      });
+    }
+  };
+
+  // Show session status message
+  function showSessionStatus(message) {
+    const status = document.getElementById('themeStatus') || document.createElement('div');
+    status.textContent = message;
+    status.className = 'theme-status success';
+    
+    if (!document.getElementById('themeStatus')) {
+      status.id = 'sessionStatus';
+      status.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 10000;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      `;
+      document.body.appendChild(status);
+    }
+    
+    setTimeout(() => {
+      if (status.textContent === message) {
+        status.textContent = '';
+        status.className = 'theme-status';
+      }
+    }, 5000);
+  }
+
+  // Add session management initialization to main init function
+  const originalInit = init;
+  init = async function() {
+    await originalInit();
+    await initializeSessionManagement();
+  };
+
+  // COMPLETE SESSION MANAGEMENT FUNCTIONS
+  let currentSessionId = null;
+
+  async function initializeCompleteSessionManagement() {
+    console.log('Initializing COMPLETE session management...');
+    
+    // Get current session ID
+    chrome.runtime.sendMessage({ action: 'getCurrentSessionId' }, (response) => {
+      if (response && response.success) {
+        currentSessionId = response.sessionId;
+        document.getElementById('currentSessionId').textContent = currentSessionId;
+      }
+    });
+    
+    updateTabCounts();
+    loadAllSessions();
+    loadAllBackups();
+    setupCompleteEventListeners();
+    
+    // Auto-refresh every 10 seconds
+    setInterval(() => {
+      updateTabCounts();
+      loadAllSessions();
+      loadAllBackups();
+    }, 10000);
+  }
+
+  function updateTabCounts() {
+    chrome.tabs.query({}, (tabs) => {
+      document.getElementById('totalTabCount').textContent = tabs.length;
+    });
+  }
+
+  function loadAllSessions() {
+    chrome.runtime.sendMessage({ action: 'getAllSessions' }, (response) => {
+      if (response && response.success) {
+        const sessionSelect = document.getElementById('sessionSelect');
+        const sessions = response.sessions;
+        
+        // Clear existing options except first
+        while (sessionSelect.children.length > 1) {
+          sessionSelect.removeChild(sessionSelect.lastChild);
+        }
+        
+        Object.values(sessions).forEach(session => {
+          if (session.id !== currentSessionId) {
+            const option = document.createElement('option');
+            option.value = session.id;
+            option.textContent = `${session.id} (${session.tabCount} tabs) - ${new Date(session.created).toLocaleString()}`;
+            sessionSelect.appendChild(option);
+          }
+        });
+      }
+    });
+  }
+
+  function loadAllBackups() {
+    chrome.runtime.sendMessage({ action: 'getSessionBackups' }, (response) => {
+      if (response && response.success) {
+        const backupsList = document.getElementById('backupsList');
+        const backups = response.backups;
+        
+        if (Object.keys(backups).length === 0) {
+          backupsList.innerHTML = '<h4>Session Backups</h4><p class="no-backups">No session backups found.</p>';
+          return;
+        }
+        
+        backupsList.innerHTML = '<h4>Session Backups</h4>';
+        
+        Object.values(backups).forEach(backup => {
+          const backupItem = document.createElement('div');
+          backupItem.className = 'backup-item';
+          backupItem.innerHTML = `
+            <div class="backup-info">
+              <div class="backup-name">${backup.name}</div>
+              <div class="backup-details">
+                ${backup.tabCount} tabs • Created: ${new Date(backup.created).toLocaleString()}
+                <br>${backup.allTabsBackup ? 'ALL TABS BACKUP' : 'Session: ' + (backup.originalSessionId || backup.sessionId)}
+              </div>
+            </div>
+            <div class="backup-actions">
+              <button onclick="restoreBackup('${backup.id}')">🔄</button>
+              <button onclick="exportBackup('${backup.id}')">📤</button>
+              <button onclick="deleteBackup('${backup.id}')">🗑️</button>
+            </div>
+          `;
+          backupsList.appendChild(backupItem);
+        });
+      }
+    });
+  }
+
+  function setupCompleteEventListeners() {
+    // Copy session ID
+    document.getElementById('copySessionId').addEventListener('click', () => {
+      navigator.clipboard.writeText(currentSessionId).then(() => {
+        showStatus('✅ Session ID copied!');
+      });
+    });
+
+    // Backup ALL tabs
+    document.getElementById('backupAllTabs').addEventListener('click', () => {
+      const backupName = document.getElementById('allTabsBackupName').value.trim();
+      
+      chrome.runtime.sendMessage({ 
+        action: 'backupAllTabs', 
+        backupName: backupName || undefined 
+      }, (response) => {
+        if (response && response.success) {
+          showStatus(`✅ ALL TABS backed up: ${response.backup.tabCount} tabs`);
+          document.getElementById('allTabsBackupName').value = '';
+          loadAllBackups();
+        } else {
+          showStatus('❌ Failed to backup all tabs: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    });
+
+    // Export ALL tabs
+    document.getElementById('exportAllTabs').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'exportAllTabs' }, (response) => {
+        if (response && response.success) {
+          downloadFile(response.data, `all-tabs-${Date.now()}.json`);
+          showStatus('✅ ALL TABS exported successfully');
+        } else {
+          showStatus('❌ Failed to export all tabs');
+        }
+      });
+    });
+
+    // Import ALL tabs
+    document.getElementById('importAllTabs').addEventListener('click', () => {
+      document.getElementById('importAllTabsFile').click();
+    });
+
+    document.getElementById('importAllTabsFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          chrome.runtime.sendMessage({ 
+            action: 'importTabs', 
+            jsonData: e.target.result 
+          }, (response) => {
+            if (response && response.success) {
+              showStatus(`✅ Imported ${response.imported} tabs successfully`);
+            } else {
+              showStatus('❌ Failed to import tabs: ' + (response?.error || 'Unknown error'));
+            }
+          });
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Restore by Session ID
+    document.getElementById('restoreBySessionId').addEventListener('click', () => {
+      const sessionId = document.getElementById('sessionIdInput').value.trim();
+      if (!sessionId) {
+        showStatus('❌ Please enter a Session ID');
+        return;
+      }
+      
+      chrome.runtime.sendMessage({ 
+        action: 'restoreBySessionId', 
+        sessionId: sessionId 
+      }, (response) => {
+        if (response && response.success) {
+          showStatus(`✅ Restored ${response.tabCount} tabs from session: ${sessionId}`);
+          document.getElementById('sessionIdInput').value = '';
+        } else {
+          showStatus('❌ Failed to restore by Session ID: ' + (response?.error || 'Session not found'));
+        }
+      });
+    });
+
+    // Regular session restore
+    document.getElementById('restoreSession').addEventListener('click', () => {
+      const sessionId = document.getElementById('sessionSelect').value;
+      if (!sessionId) {
+        showStatus('❌ Please select a session');
+        return;
+      }
+      
+      chrome.runtime.sendMessage({ 
+        action: 'restoreBySessionId', 
+        sessionId: sessionId 
+      }, (response) => {
+        if (response && response.success) {
+          showStatus(`✅ Restored ${response.tabCount} tabs`);
+        } else {
+          showStatus('❌ Failed to restore session');
+        }
+      });
+    });
+
+    // New session
+    document.getElementById('newSession').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'createNewSession' }, (response) => {
+        if (response && response.success) {
+          currentSessionId = response.sessionId;
+          document.getElementById('currentSessionId').textContent = currentSessionId;
+          showStatus(`✅ New session: ${currentSessionId}`);
+          loadAllSessions();
+        }
+      });
+    });
+
+    // Refresh
+    document.getElementById('refreshSessions').addEventListener('click', () => {
+      loadAllSessions();
+      loadAllBackups();
+      updateTabCounts();
+      showStatus('✅ Refreshed');
+    });
+
+    // Import from text
+    document.getElementById('importFromText').addEventListener('click', () => {
+      const jsonData = document.getElementById('importExportText').value.trim();
+      if (!jsonData) {
+        showStatus('❌ Please paste JSON data');
+        return;
+      }
+      
+      chrome.runtime.sendMessage({ 
+        action: 'importTabs', 
+        jsonData: jsonData 
+      }, (response) => {
+        if (response && response.success) {
+          showStatus(`✅ Imported ${response.imported} tabs from text`);
+          document.getElementById('importExportText').value = '';
+        } else {
+          showStatus('❌ Failed to import from text');
+        }
+      });
+    });
+
+    // Export to text
+    document.getElementById('exportToText').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'exportAllTabs' }, (response) => {
+        if (response && response.success) {
+          document.getElementById('importExportText').value = response.data;
+          showStatus('✅ Exported to text area');
+        } else {
+          showStatus('❌ Failed to export to text');
+        }
+      });
+    });
+  }
+
+  function downloadFile(data, filename) {
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  window.restoreBackup = function(backupId) {
+    chrome.runtime.sendMessage({ 
+      action: 'restoreBySessionId', 
+      sessionId: backupId 
+    }, (response) => {
+      if (response && response.success) {
+        showStatus(`✅ Restored backup: ${response.tabCount} tabs`);
+      } else {
+        showStatus('❌ Failed to restore backup');
+      }
+    });
+  };
+
+  window.exportBackup = function(backupId) {
+    chrome.storage.local.get(['sessionBackups'], (result) => {
+      const backup = result.sessionBackups[backupId];
+      if (backup) {
+        const exportData = JSON.stringify(backup, null, 2);
+        downloadFile(exportData, `backup-${backup.name.replace(/\s+/g, '-')}.json`);
+        showStatus('✅ Backup exported');
+      }
+    });
+  };
+
+  window.deleteBackup = function(backupId) {
+    if (confirm('Delete this backup?')) {
+      chrome.storage.local.get(['sessionBackups'], (result) => {
+        const backups = result.sessionBackups || {};
+        delete backups[backupId];
+        chrome.storage.local.set({ sessionBackups: backups }, () => {
+          showStatus('✅ Backup deleted');
+          loadAllBackups();
+        });
+      });
+    }
+  };
+
+  function showStatus(message) {
+    const status = document.getElementById('sessionStatus') || document.createElement('div');
+    status.id = 'sessionStatus';
+    status.textContent = message;
+    status.style.cssText = `
+      position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.8);
+      color: white; padding: 10px 20px; border-radius: 5px; z-index: 10000;
+      border: 1px solid rgba(255,255,255,0.3);
+    `;
+    
+    if (!document.getElementById('sessionStatus')) {
+      document.body.appendChild(status);
+    }
+    
+    setTimeout(() => {
+      status.textContent = '';
+    }, 5000);
+  }
+
+  // Add to main init
+  const originalInit = init;
+  init = async function() {
+    await originalInit();
+    await initializeCompleteSessionManagement();
+  };

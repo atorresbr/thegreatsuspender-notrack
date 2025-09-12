@@ -212,7 +212,23 @@ var gsUtils = {
     } else if (looseMatching) {
       return url.indexOf('suspended.html') > 0;
     } else {
-      return url.indexOf((chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL : chrome.extension.getURL)('suspended.html')) === 0;
+      // Current extension URL check
+      if (url.indexOf((chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL : chrome.extension.getURL)('suspended.html')) === 0) {
+        return true;
+      }
+      
+      // Check for URLs from old extension IDs
+      var OLD_EXTENSION_IDS = [
+        'ahkbmjhfoplmfkpncgoedjgkajkehcgo', // Your old extension ID
+        'klbibkeccnjlkjkiokjodocebajanakg'  // Original The Great Suspender ID
+      ];
+      for (var i = 0; i < OLD_EXTENSION_IDS.length; i++) {
+        var oldExtensionUrl = 'chrome-extension://' + OLD_EXTENSION_IDS[i] + '/suspended.html';
+        if (url.indexOf(oldExtensionUrl) === 0) {
+          return true;
+        }
+      }
+      return false;
     }
   },
 
@@ -507,10 +523,19 @@ var gsUtils = {
     return gsUtils.decodeString(gsUtils.getHashVariable('pos', urlStr) || '');
   },
   getOriginalUrl: function(urlStr) {
-    return (
-      gsUtils.getHashVariable('uri', urlStr) ||
-      gsUtils.decodeString(gsUtils.getHashVariable('url', urlStr) || '')
-    );
+    if (!urlStr) {
+      return null;
+    }
+    // Handle URLs from old extensions
+    var originalUrl;
+    if (urlStr.includes('suspended.html')) {
+      originalUrl = gsUtils.getHashVariable('uri', urlStr);
+      if (!originalUrl) {
+        // Try the url parameter used in some older versions
+        originalUrl = gsUtils.getHashVariable('url', urlStr);
+      }
+    }
+    return originalUrl;
   },
   getCleanTabTitle: function(tab) {
     let cleanedTitle = gsUtils.decodeString(tab.title);
@@ -902,3 +927,25 @@ var gsUtils = {
     return result;
   },
 };
+
+// Add missing isValidTabInfo function
+function isValidTabInfo(tab) {
+  return tab && 
+         typeof tab.id === 'number' && 
+         tab.id > 0 && 
+         typeof tab.url === 'string' && 
+         tab.url.length > 0;
+}
+
+// Add executeForEachTab function if missing
+function executeForEachTab(callback) {
+  chrome.tabs.query({}, function(tabs) {
+    if (tabs && tabs.length > 0) {
+      tabs.forEach(callback);
+    }
+  });
+}
+
+// Export the new functions
+gsUtils.isValidTabInfo = isValidTabInfo;
+gsUtils.executeForEachTab = executeForEachTab;

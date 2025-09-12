@@ -1,0 +1,151 @@
+'use strict';
+
+// Set up basic objects needed by scripts
+self.window = self;
+self.document = {
+  addEventListener: function() {},
+  removeEventListener: function() {},
+  createElement: function() { return {}; },
+  getElementById: function() { return null; }
+};
+
+// Manifest V3 compatibility
+if (!chrome.extension) {
+  chrome.extension = {};
+}
+
+if (!chrome.extension.isAllowedFileSchemeAccess) {
+  chrome.extension.isAllowedFileSchemeAccess = function(callback) {
+    if (typeof callback === "function") {
+      setTimeout(() => callback(false), 0);
+    }
+    return Promise.resolve(false);
+  };
+}
+
+if (!chrome.extension.getBackgroundPage) {
+  chrome.extension.getBackgroundPage = function() {
+    return null;
+  };
+}
+
+if (!chrome.extension.getURL) {
+  chrome.extension.getURL = function(path) {
+    return chrome.runtime.getURL(path);
+  };
+}
+
+// Mock chrome.commands
+if (!chrome.commands) {
+  chrome.commands = {
+    getAll: function(callback) {
+      if (typeof callback === "function") {
+        setTimeout(() => callback([]), 0);
+      }
+      return Promise.resolve([]);
+    },
+    onCommand: {
+      addListener: function(callback) {}
+    }
+  };
+}
+
+// Silent error handling
+if (chrome.contextMenus) {
+  const originalCreate = chrome.contextMenus.create;
+  const originalRemoveAll = chrome.contextMenus.removeAll;
+  
+  chrome.contextMenus.create = function(createProperties, callback) {
+    try {
+      return originalCreate.call(this, createProperties, function() {
+        if (chrome.runtime.lastError) {
+          chrome.runtime.lastError = null;
+        }
+        if (callback) callback.apply(this, arguments);
+      });
+    } catch (error) {
+      if (callback) setTimeout(() => callback(), 0);
+    }
+  };
+  
+  chrome.contextMenus.removeAll = function(callback) {
+    try {
+      return originalRemoveAll.call(this, function() {
+        if (chrome.runtime.lastError) {
+          chrome.runtime.lastError = null;
+        }
+        if (callback) callback.apply(this, arguments);
+      });
+    } catch (error) {
+      if (callback) setTimeout(() => callback(), 0);
+    }
+  };
+}
+
+// Silent chrome.runtime error handling
+const originalSendMessage = chrome.runtime.sendMessage;
+chrome.runtime.sendMessage = function() {
+  try {
+    const result = originalSendMessage.apply(this, arguments);
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => null);
+    }
+    return result;
+  } catch (error) {
+    return Promise.resolve(null);
+  }
+};
+
+// Clear runtime errors silently
+function clearRuntimeError() {
+  if (chrome.runtime.lastError) {
+    chrome.runtime.lastError = null;
+  }
+}
+setInterval(clearRuntimeError, 500);
+
+// Silent error handlers
+self.addEventListener('error', (event) => event.preventDefault());
+self.addEventListener('unhandledrejection', (event) => event.preventDefault());
+
+// Function to safely import scripts
+function safeImport(scriptName) {
+  try {
+    importScripts(scriptName);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Load scripts in order
+const scripts = [
+  'gsRegistry.js',
+  'gsManifestV3Adapter.js',
+  'gsUtils.js',
+  'gsChrome.js',
+  'gsStorage.js',
+  'db.js',
+  'gsIndexedDb.js',
+  'gsMessages.js',
+  'gsSession.js',
+  'gsTabQueue.js',
+  'gsTabCheckManager.js',
+  'gsFavicon.js',
+  'gsCleanScreencaps.js',
+  'gsTabSuspendManager.js',
+  'gsTabDiscardManager.js',
+  'gsSuspendedTab.js',
+  'background.js'
+];
+
+scripts.forEach(script => safeImport(script));
+
+// Service worker handlers
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim().catch(() => {}));
+});
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});

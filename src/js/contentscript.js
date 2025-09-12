@@ -1,134 +1,68 @@
-/*global chrome */
-/*
- * The Great Suspender
- * Copyright (C) 2017 Dean Oemcke
- * Available under GNU GENERAL PUBLIC LICENSE v2
- * http://github.com/aciidic/thegreatsuspender
- * ლ(ಠ益ಠლ)
-*/
+/**
+ * Manifest V3 Content Script
+ */
+
+console.log('Content script loaded on:', window.location.href);
+
 (function() {
   'use strict';
-
-  let isFormListenerInitialised = false;
-  let isReceivingFormInput = false;
-  let isIgnoreForms = false;
-  let tempWhitelist = false;
-
-  function formInputListener(e) {
-    if (!isReceivingFormInput && !tempWhitelist) {
-      if (event.keyCode >= 48 && event.keyCode <= 90 && event.target.tagName) {
-        if (
-          event.target.tagName.toUpperCase() === 'INPUT' ||
-          event.target.tagName.toUpperCase() === 'TEXTAREA' ||
-          event.target.tagName.toUpperCase() === 'FORM' ||
-          event.target.isContentEditable === true ||
-          event.target.type === "application/pdf"
-        ) {
-          isReceivingFormInput = true;
-          if (!isBackgroundConnectable()) {
-            return false;
-          }
-          chrome.runtime.sendMessage(buildReportTabStatePayload());
-        }
-      }
+  
+  // Check if this is a suspended tab
+  if (window.location.href.includes('suspended.html')) {
+    console.log('Suspended tab detected');
+    return;
+  }
+  
+  // Page activity monitoring
+  let lastActivity = Date.now();
+  let isActive = true;
+  
+  // Activity listeners
+  ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
+    document.addEventListener(event, () => {
+      lastActivity = Date.now();
+      isActive = true;
+    }, true);
+  });
+  
+  // Visibility change
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      isActive = false;
+    } else {
+      lastActivity = Date.now();
+      isActive = true;
     }
-  }
-
-  function initFormInputListener() {
-    if (isFormListenerInitialised) {
-      return;
+  });
+  
+  // Message handling
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('Content script received message:', request);
+    
+    switch(request.action) {
+      case 'getPageInfo':
+        sendResponse({
+          success: true,
+          url: window.location.href,
+          title: document.title,
+          lastActivity: lastActivity,
+          isActive: isActive
+        });
+        break;
+      case 'checkActivity':
+        const inactive = Date.now() - lastActivity > (request.timeout || 1200000); // 20 minutes
+        sendResponse({
+          success: true,
+          inactive: inactive,
+          lastActivity: lastActivity
+        });
+        break;
+      default:
+        sendResponse({success: false, error: 'Unknown action'});
     }
-    window.addEventListener('keydown', formInputListener);
-    isFormListenerInitialised = true;
-  }
-
-  function init() {
-    //listen for background events
-    chrome.runtime.onMessage.addListener(function(
-      request,
-      sender,
-      sendResponse
-    ) {
-      if (request.hasOwnProperty('action')) {
-        if (request.action === 'requestInfo') {
-          sendResponse(buildReportTabStatePayload());
-          return false;
-        }
-      }
-
-      if (request.hasOwnProperty('scrollPos')) {
-        if (request.scrollPos !== '' && request.scrollPos !== '0') {
-          document.body.scrollTop = request.scrollPos;
-          document.documentElement.scrollTop = request.scrollPos;
-        }
-      }
-      if (request.hasOwnProperty('ignoreForms')) {
-        isIgnoreForms = request.ignoreForms;
-        if (isIgnoreForms) {
-          initFormInputListener();
-        }
-        isReceivingFormInput = isReceivingFormInput && isIgnoreForms;
-      }
-      if (request.hasOwnProperty('tempWhitelist')) {
-        if (isReceivingFormInput && !request.tempWhitelist) {
-          isReceivingFormInput = false;
-        }
-        tempWhitelist = request.tempWhitelist;
-      }
-      sendResponse(buildReportTabStatePayload());
-      return false;
-    });
-  }
-
-  function waitForRuntimeReady(retries) {
-    retries = retries || 0;
-    return new Promise(r => r(chrome.runtime)).then(chromeRuntime => {
-      if (chromeRuntime) {
-        return Promise.resolve();
-      }
-      if (retries > 3) {
-        return Promise.reject('Failed waiting for chrome.runtime');
-      }
-      retries += 1;
-      return new Promise(r => window.setTimeout(r, 500)).then(() =>
-        waitForRuntimeReady(retries)
-      );
-    });
-  }
-
-  function isBackgroundConnectable() {
-    try {
-      var port = chrome.runtime.connect();
-      if (port) {
-        port.disconnect();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function buildReportTabStatePayload() {
-    return {
-      action: 'reportTabState',
-      status:
-        isIgnoreForms && isReceivingFormInput
-          ? 'formInput'
-          : tempWhitelist
-            ? 'tempWhitelist'
-            : 'normal',
-      scrollPos:
-        document.body.scrollTop || document.documentElement.scrollTop || 0,
-    };
-  }
-
-  waitForRuntimeReady()
-    .then(init)
-    .catch(e => {
-      console.error(e);
-      setTimeout(() => {
-        init();
-      }, 200);
-    });
+    
+    return true;
+  });
+  
+  console.log('Content script initialized');
 })();

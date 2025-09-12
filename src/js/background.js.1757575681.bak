@@ -1,0 +1,457 @@
+/*global chrome, localStorage, setTimeout, clearTimeout, console, gsUtils, gsChrome, gsStorage, gsSession, gsIndexedDb, gsTabQueue, gsTabCheckManager, gsTabSuspendManager, gsTabDiscardManager, gsFavicon, gsMessages */
+'use strict';
+
+var tgs = (function() {
+  'use strict';
+
+  var debug = false;
+  var globalCurrentTabId;
+  var globalCurrentWindowId;
+
+  // Chrome event listeners
+  var _chromeTabs;
+  var _chromeTabsOnCreated;
+  var _chromeTabsOnRemoved;
+  var _chromeTabsOnUpdated;
+  var _chromeTabsOnActivated;
+  var _chromeTabsOnMoved;
+  var _chromeTabsOnDetached;
+  var _chromeTabsOnAttached;
+  var _chromeTabsOnReplaced;
+
+  var _chromeWindows;
+  var _chromeWindowsOnCreated;
+  var _chromeWindowsOnRemoved;
+  var _chromeWindowsOnFocusChanged;
+
+  var _chromeRuntime;
+  var _chromeRuntimeOnStartup;
+  var _chromeRuntimeOnInstalled;
+  var _chromeRuntimeOnMessage;
+  var _chromeRuntimeOnConnect;
+
+  // Add message listeners function
+  function addMessageListeners() {
+    console.log('Setting up message listeners...');
+    
+    // Set up chrome.runtime.onMessage listener
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+      console.log('Received message:', request);
+      
+      // Handle common message types
+      if (request.action === 'suspendTab') {
+        if (sender.tab) {
+          tgs.suspendTab(sender.tab);
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      if (request.action === 'unsuspendTab') {
+        if (sender.tab) {
+          tgs.unsuspendTab(sender.tab);
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      // For messages that need background page access
+      if (request.action === 'getBackgroundStatus') {
+        sendResponse({ 
+          status: 'available',
+          isManifestV3: true,
+          version: chrome.runtime.getManifest().version
+        });
+        return true;
+      }
+      
+      // Options page requests
+      if (request.action === 'setOption' && request.key) {
+        gsStorage.setOption(request.key, request.value);
+        sendResponse({success: true});
+        return true;
+      }
+      
+      if (request.action === 'getOption' && request.key) {
+        const value = gsStorage.getOption(request.key);
+        sendResponse(value);
+        return true;
+      }
+      
+      // Default response
+      sendResponse({ success: false, error: 'Unhandled message type' });
+      return true;
+    });
+    
+    console.log('Message listeners initialized');
+  }
+
+  // Add command listeners function with defensive checks
+  function addCommandListeners() {
+    // Add defensive check for chrome.commands.onCommand
+    if (!chrome.commands || !chrome.commands.onCommand) {
+      gsUtils.warning('background', 'chrome.commands.onCommand not available in this browser version');
+      console.warn('chrome.commands.onCommand is not available. Keyboard shortcuts will not work.');
+      return;
+    }
+
+    chrome.commands.onCommand.addListener(async function(command) {
+      gsUtils.log('background', 'Command received: ' + command);
+      switch (command) {
+        case '1-suspend-tab':
+          toggleSuspendedStateOfActiveTab();
+          break;
+        case '2-toggle-temp-whitelist-tab':
+          toggleTempWhitelistStateOfActiveTab();
+          break;
+        case '2a-suspend-selected-tabs':
+          suspendSelectedTabs();
+          break;
+        case '2b-unsuspend-selected-tabs':
+          unsuspendSelectedTabs();
+          break;
+        case '3-suspend-active-window':
+          suspendAllTabs(false);
+          break;
+        case '3b-force-suspend-active-window':
+          forceTabSuspension();
+          break;
+        case '4-unsuspend-active-window':
+          unsuspendAllTabs();
+          break;
+        case '4b-soft-suspend-all-windows':
+          suspendAllTabsInAllWindows();
+          break;
+        case '5-suspend-all-windows':
+          forceTabSuspensionInAllWindows();
+          break;
+        case '6-unsuspend-all-windows':
+          unsuspendAllTabsInAllWindows();
+          break;
+      }
+    });
+  }
+
+  // Context menu functions
+  function buildContextMenuItems() {
+    try {
+      chrome.contextMenus.removeAll();
+      
+      chrome.contextMenus.create({
+        id: '1-suspend-tab',
+        title: 'Suspend tab',
+        contexts: ['page'],
+        documentUrlPatterns: ['http://*/*', 'https://*/*', 'file://*/*'],
+      });
+      
+      chrome.contextMenus.create({
+        id: '2-toggle-temp-whitelist-tab',
+        title: 'Toggle temp whitelist',
+        contexts: ['page'],
+        documentUrlPatterns: ['http://*/*', 'https://*/*', 'file://*/*'],
+      });
+      
+      chrome.contextMenus.create({
+        id: '3-suspend-active-window',
+        title: 'Suspend other tabs in window',
+        contexts: ['page'],
+        documentUrlPatterns: ['http://*/*', 'https://*/*', 'file://*/*'],
+      });
+      
+      chrome.contextMenus.onClicked.addListener(function(info, tab) {
+        switch (info.menuItemId) {
+          case '1-suspend-tab':
+            toggleSuspendedStateOfActiveTab();
+            break;
+          case '2-toggle-temp-whitelist-tab':
+            toggleTempWhitelistStateOfActiveTab();
+            break;
+          case '3-suspend-active-window':
+            suspendAllTabs(false);
+            break;
+        }
+      });
+    } catch (e) {
+      console.error('Error building context menu:', e);
+    }
+  }
+
+  // Basic tab management functions
+  function suspendTab(tab) {
+    if (!tab || !gsUtils.isSuspendable(tab)) {
+      return;
+    }
+    
+    gsUtils.log(tab.id, 'Suspending tab: ' + tab.url);
+    gsTabSuspendManager.queueTabForSuspension(tab, 0);
+  }
+
+  function unsuspendTab(tab) {
+    if (!tab) return;
+    
+    gsUtils.log(tab.id, 'Unsuspending tab');
+    const originalUrl = gsUtils.getOriginalUrl(tab.url);
+    if (originalUrl) {
+      gsChrome.tabsUpdate(tab.id, { url: originalUrl });
+    }
+  }
+
+  function toggleSuspendedStateOfActiveTab() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs && tabs.length > 0) {
+        const activeTab = tabs[0];
+        if (gsUtils.isSuspendedTab(activeTab)) {
+          unsuspendTab(activeTab);
+        } else if (gsUtils.isSuspendable(activeTab)) {
+          suspendTab(activeTab);
+        }
+      }
+    });
+  }
+
+  function toggleTempWhitelistStateOfActiveTab() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs && tabs.length > 0) {
+        const activeTab = tabs[0];
+        // Toggle temp whitelist logic here
+        gsUtils.log(activeTab.id, 'Toggling temp whitelist');
+      }
+    });
+  }
+
+  function suspendAllTabs(suspendPinnedTabs) {
+    chrome.tabs.query({currentWindow: true}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (!tab.active && gsUtils.isSuspendable(tab)) {
+          if (!tab.pinned || suspendPinnedTabs) {
+            suspendTab(tab);
+          }
+        }
+      });
+    });
+  }
+
+  function unsuspendAllTabs() {
+    chrome.tabs.query({currentWindow: true}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (gsUtils.isSuspendedTab(tab)) {
+          unsuspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function suspendSelectedTabs() {
+    chrome.tabs.query({highlighted: true, currentWindow: true}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (!tab.active && gsUtils.isSuspendable(tab)) {
+          suspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function unsuspendSelectedTabs() {
+    chrome.tabs.query({highlighted: true, currentWindow: true}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (gsUtils.isSuspendedTab(tab)) {
+          unsuspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function forceTabSuspension() {
+    chrome.tabs.query({currentWindow: true}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (!tab.active && gsUtils.isSuspendable(tab)) {
+          suspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function suspendAllTabsInAllWindows() {
+    chrome.tabs.query({}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (!tab.active && gsUtils.isSuspendable(tab)) {
+          suspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function forceTabSuspensionInAllWindows() {
+    suspendAllTabsInAllWindows();
+  }
+
+  function unsuspendAllTabsInAllWindows() {
+    chrome.tabs.query({}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (gsUtils.isSuspendedTab(tab)) {
+          unsuspendTab(tab);
+        }
+      });
+    });
+  }
+
+  function addTabListeners() {
+    chrome.tabs.onCreated.addListener(function(tab) {
+      gsUtils.log(tab.id, 'Tab created');
+    });
+
+    chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+      if (changeInfo.status === 'complete') {
+        gsTabCheckManager.queueTabCheck(tab);
+      }
+    });
+
+    chrome.tabs.onActivated.addListener(function(activeInfo) {
+      globalCurrentTabId = activeInfo.tabId;
+      globalCurrentWindowId = activeInfo.windowId;
+    });
+
+    chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
+      gsUtils.log(tabId, 'Tab removed');
+    });
+  }
+
+  function onSettingsChanged() {
+    gsUtils.log('background', 'Settings changed, updating context menu');
+    if (gsStorage.getOption(gsStorage.ADD_CONTEXT)) {
+      buildContextMenuItems();
+    } else {
+      chrome.contextMenus.removeAll();
+    }
+  }
+
+  function updateContextMenu() {
+    if (gsStorage.getOption(gsStorage.ADD_CONTEXT)) {
+      buildContextMenuItems();
+    }
+  }
+
+  function setIconStatusForActiveTab() {
+    // Update extension icon based on current tab status
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs && tabs.length > 0) {
+        const activeTab = tabs[0];
+        if (gsUtils.isSuspendedTab(activeTab)) {
+          chrome.action.setIcon({path: '/img/icon19_suspended.png'});
+        } else {
+          chrome.action.setIcon({path: '/img/icon19.png'});
+        }
+      }
+    });
+  }
+
+  function resetAutoSuspendTimerForAllTabs() {
+    chrome.tabs.query({}, function(tabs) {
+      tabs.forEach(function(tab) {
+        if (gsUtils.isSuspendable(tab)) {
+          gsTabCheckManager.queueTabCheck(tab);
+        }
+      });
+    });
+  }
+
+  function handleAutoSuspendAlarm() {
+    gsUtils.log('background', 'Auto suspend alarm fired');
+    gsTabCheckManager.performTabChecks();
+  }
+
+  function resetTempWhitelist() {
+    gsUtils.log('background', 'Resetting temp whitelist');
+  }
+
+  function maybeUpdatehistoricalTabInDatabase() {
+    gsUtils.log('background', 'Updating historical tab data');
+  }
+
+  // Main initialization function
+  function initAsPromised() {
+    return new Promise(function(resolve) {
+      gsUtils.log('background', 'INITIALISING...');
+      
+      // Register message listeners
+      addMessageListeners();
+      
+      // Register command listeners
+      addCommandListeners();
+      
+      // Clear any local suspension information regarding suspended tabs
+      localStorage.setItem('suspendedTabInfo', JSON.stringify({}));
+      
+      // Add context menu items
+      if (gsStorage.getOption(gsStorage.ADD_CONTEXT)) {
+        gsUtils.log('background', 'Adding context menus');
+        buildContextMenuItems();
+      }
+      
+      // Initialize tab listeners
+      gsUtils.log('background', 'Adding tab listeners');
+      addTabListeners();
+      
+      // Add listener for storage changes (with fallback)
+      if (typeof gsStorage.addChangeListeners === 'function') {
+        gsStorage.addChangeListeners(onSettingsChanged);
+      } else {
+        console.warn('gsStorage.addChangeListeners not available');
+      }
+      
+      // Add alarm listeners
+      chrome.alarms.onAlarm.addListener(function(alarm) {
+        if (alarm.name === 'autoSuspendAlarm') {
+          gsUtils.log('background', 'autoSuspendAlarm fired');
+          handleAutoSuspendAlarm();
+        } else if (alarm.name === 'temporaryWhitelistAlarm') {
+          gsUtils.log('background', 'temporaryWhitelistAlarm fired');
+          resetTempWhitelist();
+        } else if (alarm.name === 'updateHistoricalTabAlarm') {
+          gsUtils.log('background', 'updateHistoricalTabAlarm fired');
+          maybeUpdatehistoricalTabInDatabase();
+        }
+      });
+      
+      // Set up session management
+      gsSession.initAsPromised()
+        .then(function() {
+          gsUtils.log('background', 'Init successful');
+          resolve();
+        })
+        .catch(function(err) {
+          console.error(err);
+          gsUtils.error('background', 'Init error: ', err);
+          resolve();
+        });
+    });
+  }
+
+  // Initialize the extension
+  initAsPromised().then(function() {
+    gsUtils.log('background', 'Extension initialized successfully');
+    
+    // Perform initial tab checks
+    gsTabCheckManager.performTabChecks();
+  });
+
+  // Public API
+  return {
+    initAsPromised: initAsPromised,
+    suspendTab: suspendTab,
+    unsuspendTab: unsuspendTab,
+    toggleSuspendedStateOfActiveTab: toggleSuspendedStateOfActiveTab,
+    toggleTempWhitelistStateOfActiveTab: toggleTempWhitelistStateOfActiveTab,
+    suspendAllTabs: suspendAllTabs,
+    unsuspendAllTabs: unsuspendAllTabs,
+    suspendSelectedTabs: suspendSelectedTabs,
+    unsuspendSelectedTabs: unsuspendSelectedTabs,
+    forceTabSuspension: forceTabSuspension,
+    suspendAllTabsInAllWindows: suspendAllTabsInAllWindows,
+    forceTabSuspensionInAllWindows: forceTabSuspensionInAllWindows,
+    unsuspendAllTabsInAllWindows: unsuspendAllTabsInAllWindows,
+    updateContextMenu: updateContextMenu,
+    setIconStatusForActiveTab: setIconStatusForActiveTab,
+    resetAutoSuspendTimerForAllTabs: resetAutoSuspendTimerForAllTabs
+  };
+})();

@@ -927,3 +927,25 @@ var gsUtils = {
     return result;
   },
 };
+
+// Add missing isValidTabInfo function
+function isValidTabInfo(tab) {
+  return tab && 
+         typeof tab.id === 'number' && 
+         tab.id > 0 && 
+         typeof tab.url === 'string' && 
+         tab.url.length > 0;
+}
+
+// Add executeForEachTab function if missing
+function executeForEachTab(callback) {
+  chrome.tabs.query({}, function(tabs) {
+    if (tabs && tabs.length > 0) {
+      tabs.forEach(callback);
+    }
+  });
+}
+
+// Export the new functions
+gsUtils.isValidTabInfo = isValidTabInfo;
+gsUtils.executeForEachTab = executeForEachTab;

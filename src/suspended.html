@@ -1,61 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-
 <head>
-	<!--should use the same as the default extension favicon-->
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link id="gsFavicon" rel="icon" href="img/ic_suspendy_16x16.png" />
-	<link rel="stylesheet" type="text/css" href="css/suspended.css">
-	<!--no point localising the gsTitle as it requires js to do so, and we may as well just set the real title instead-->
-	<!--ideally it will show no title at all until the real one loads, so we use the ZERO WIDTH NO-BREAK SPACE character-->
-	<title id="gsTitle">...</title>
-	<meta name="google" content="notranslate">
+    <meta charset="utf-8">
+    <title>Tab Suspended</title>
+    <link rel="stylesheet" href="css/suspended.css">
 </head>
-
-<body class="suspended-page hide-initially">
-
-	<script type="text/html" id="previewTemplate">
-    <img id="gsPreviewImg" class="gsPreviewImg" />
-	</script>
-
-	<script type="text/html" id="toastTemplate">
-		<div class="toast-content">
-			<h1 data-i18n="__MSG_html_suspended_toast_not_connected__"></h1>
-			<p data-i18n="__MSG_html_suspended_toast_reload_disabled__"></p>
-		</div>
-	</script>
-
-	<div id="gsTopBar" class="gsTopBar">
-		<div id="gsTopBarTitleWrap" class="hideOverflow gsTopBarTitleWrap">
-			<div id="faviconWrap" class="faviconWrap">
-				<img id="gsTopBarImg" class="gsTopBarImg" />
-			</div>
-			<span id="gsTopBarTitle" class="gsTopBarTitle"></span>
-		</div>
-		<div class="hideOverflow">
-			<a id="gsTopBarUrl" class="gsTopBarUrl"></a>
-		</div>
-	</div>
-
-	<div id="suspendedMsg" class="suspendedMsg">
-		<div class="snoozyWrapper">
-			<img id="snoozyImg" src="img/snoozy_tab.svg" />
-			<div id="snoozySpinner"></div>
-		</div>
-		<div class="suspendedTextWrap">
-			<div id="suspendedMsg-instr" class="suspendedMsg-instr">
-				<div data-i18n="__MSG_html_suspended_click_to_reload__"></div>
-			</div>
-			<div class="suspendedMsg-shortcut">
-				<span id="hotkeyWrapper" class="hotkeyWrapper"></span>
-			</div>
-		</div>
-	</div>
-	<div class="watermark">
-		The Great Suspender
-	</div>
-
-	<div id="refreshSpinner"></div>
+<body>
+    <div class="container">
+        <div class="content">
+            <div class="icon">💤</div>
+            <h1>Tab Suspended</h1>
+            <p class="description">This tab has been suspended to save memory and CPU.</p>
+            <div class="url-info" id="originalUrl"></div>
+            <button class="reload-btn" onclick="restoreTab()">
+                <span class="btn-icon">🔄</span>
+                Reload Tab
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        
+        function restoreTab() {
+            const originalUrl = getUrlParameter('url') || getUrlParameter('uri');
+            if (originalUrl) {
+                window.location.href = decodeURIComponent(originalUrl);
+            } else {
+                window.history.back();
+            }
+        }
+        
+        // Display original URL and title
+        const originalUrl = getUrlParameter('url') || getUrlParameter('uri');
+        const originalTitle = getUrlParameter('title');
+        
+        if (originalUrl) {
+            document.getElementById('originalUrl').innerHTML = 
+                '<strong>Original URL:</strong><br>' + decodeURIComponent(originalUrl);
+        }
+        
+        if (originalTitle) {
+            document.title = decodeURIComponent(originalTitle) + ' (Suspended)';
+        }
+        
+        // Keyboard shortcut to restore
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R' || e.key === ' ') {
+                restoreTab();
+            }
+        });
+    </script>
 </body>
-
 </html>

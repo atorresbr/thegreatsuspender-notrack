@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+
+<body>
+    <div class="popup-container">
+        <div class="popup-header">
+            <h3 class="popup-title">The Great Suspender</h3>
+        </div>
+        
+        <div class="popup-body">
+            <div class="popup-action" id="suspendOne">Suspend this tab</div>
+            <div class="popup-action" id="suspendAll">Suspend other tabs in window</div>
+            <div class="popup-action" id="unsuspendAll">Unsuspend all tabs in window</div>
+            <div class="popup-action" id="tempWhitelist">Add current site to temp whitelist</div>
+            
+            <div class="popup-divider"></div>
+            
+            <div class="popup-action" id="settingsLink">Settings</div>
+        </div>
+    </div>
+
+    <script src="js/popup.js"></script>
+</body>
+</html>

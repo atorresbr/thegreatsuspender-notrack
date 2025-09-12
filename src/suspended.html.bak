@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tab Suspended</title>
+  <style>
+    body {
+      font-family: -webkit-system-font, system-ui, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      font-weight: 300;
+    }
+    .url {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      word-break: break-all;
+      font-family: monospace;
+    }
+    .actions {
+      margin-top: 30px;
+    }
+    button {
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid white;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 0 10px;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: white;
+      color: #667eea;
+    }
+    .info {
+      margin-top: 20px;
+      opacity: 0.8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💤 Tab Suspended</h1>
+    <p>This tab has been suspended to save memory and battery.</p>
+    
+    <div class="url" id="originalUrl">
+      Loading original URL...
+    </div>
+    
+    <div class="actions">
+      <button onclick="reloadTab()">🔄 Reload Tab</button>
+      <button onclick="openInNewTab()">🔗 Open in New Tab</button>
+    </div>
+    
+    <div class="info">
+      <p>Click "Reload Tab" to restore this page, or use the browser's back/forward buttons.</p>
+      <p>The Great Suspender helps reduce memory usage by suspending inactive tabs.</p>
+    </div>
+  </div>
+
+  <script>
+    // Get the original URL from the current URL parameters
+    function getOriginalUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('uri') || urlParams.get('url') || 'about:blank';
+    }
+
+    // Display the original URL
+    function displayOriginalUrl() {
+      const originalUrl = getOriginalUrl();
+      const urlElement = document.getElementById('originalUrl');
+      if (originalUrl && originalUrl !== 'about:blank') {
+        urlElement.textContent = decodeURIComponent(originalUrl);
+      } else {
+        urlElement.textContent = 'No URL available';
+      }
+    }
+
+    // Reload the original tab
+    function reloadTab() {
+      const originalUrl = getOriginalUrl();
+      if (originalUrl && originalUrl !== 'about:blank') {
+        window.location.href = decodeURIComponent(originalUrl);
+      } else {
+        window.history.back();
+      }
+    }
+
+    // Open original URL in new tab
+    function openInNewTab() {
+      const originalUrl = getOriginalUrl();
+      if (originalUrl && originalUrl !== 'about:blank') {
+        window.open(decodeURIComponent(originalUrl), '_blank');
+      }
+    }
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+      displayOriginalUrl();
+      
+      // Set up keyboard shortcut (Space or Enter to reload)
+      document.addEventListener('keydown', function(event) {
+        if (event.code === 'Space' || event.code === 'Enter') {
+          event.preventDefault();
+          reloadTab();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

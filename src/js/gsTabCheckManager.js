@@ -2,45 +2,33 @@
 'use strict';
 
 var gsTabCheckManager = (function() {
-  // Milliseconds to wait before checking if a tab is unresponsive
+  // Constants
   const UNRESPONSIVE_TIMEOUT = 5000;
   const MAX_FAILED_SUSPENSIONS = 3;
   const MAX_POPUP_ATTEMPTS = 5;
   const QUEUE_ID = 'checkQueue';
 
-  // MUST ALWAYS check that gsTabQueue exists before using it
-  function safeTabQueue() {
-    if (!gsTabQueue) {
-      console.warn('gsTabQueue not available');
-      return {
-        queueTabAsPromise: function() {
-          console.warn('Using stub queueTabAsPromise');
-          return Promise.resolve();
-        },
-        unqueueTab: function() {
-          console.warn('Using stub unqueueTab');
-          return Promise.resolve();
-        }
-      };
-    }
-    return gsTabQueue;
-  }
-
   function getQueuedTabDetails(tabId) {
-    return safeTabQueue().getQueuedTabDetails(tabId, QUEUE_ID);
+    if (!gsTabQueue) return null;
+    return gsTabQueue.getQueuedTabDetails(tabId, QUEUE_ID);
   }
 
   function queueTabCheck(tab, preQueue) {
     preQueue = preQueue || [];
     queueTabCheckAsPromise(tab, preQueue);
-    return Promise.resolve(preQueue); // Not actually a promise
+    return Promise.resolve();
   }
 
   function queueTabCheckAsPromise(tab, preQueue) {
     preQueue = preQueue || [];
     return new Promise(function(resolve) {
       gsUtils.log(tab.id, 'Queuing tab for check.');
-      safeTabQueue()
+      if (!gsTabQueue || typeof gsTabQueue.queueTabAsPromise !== 'function') {
+        console.warn('gsTabQueue not available for queueTabCheckAsPromise');
+        resolve();
+        return;
+      }
+      gsTabQueue
         .queueTabAsPromise(tab.id, QUEUE_ID, function() {
           checkTab(tab, preQueue);
         })
@@ -49,68 +37,62 @@ var gsTabCheckManager = (function() {
   }
 
   function unqueueTabCheck(tabId) {
-    return safeTabQueue().unqueueTab(tabId, QUEUE_ID);
-  }
-
-  function getUpdatedTab(tab, callback) {
-    if (typeof tab === 'undefined') {
-      callback(null);
-      return;
-    }
-    if (!gsUtils.isValidTabInfo(tab)) {
-      gsUtils.log(tab.id, 'Tab is invalid. Getting updated tab information.');
-      gsChrome.tabsGet(tab.id).then(function(newTab) {
-        if (!gsUtils.isValidTabInfo(newTab)) {
-          gsUtils.log(tab.id, 'Updated tab is invalid!');
-          callback(null);
-          return;
-        }
-        callback(newTab);
-      });
-      return;
-    }
-    callback(tab);
+    if (!gsTabQueue) return Promise.resolve();
+    return gsTabQueue.unqueueTab(tabId, QUEUE_ID);
   }
 
   function checkTab(tab, preQueue) {
     gsUtils.log(tab.id, 'Checking tab state.');
 
-    getUpdatedTab(tab, function(newTab) {
-      if (!newTab) {
-        gsUtils.log(tab.id, 'Tab has been discarded/removed. Aborting tab check.');
-        return;
-      }
-      tab = newTab;
+    if (typeof tab === 'undefined') {
+      return;
+    }
+    
+    if (!gsUtils.isValidTabInfo(tab)) {
+      gsUtils.log(tab.id, 'Tab is invalid. Getting updated tab information.');
+      gsChrome.tabsGet(tab.id).then(function(newTab) {
+        if (!gsUtils.isValidTabInfo(newTab)) {
+          gsUtils.log(tab.id, 'Updated tab is invalid!');
+          return;
+        }
+        tab = newTab;
+        processTabState(tab, preQueue);
+      });
+      return;
+    }
+    
+    processTabState(tab, preQueue);
+  }
 
-      // If tab is already suspended
-      if (gsUtils.isSuspendedTab(tab)) {
-        checkSuspendedTab(tab);
-        return;
-      }
+  function processTabState(tab, preQueue) {
+    // If tab is already suspended
+    if (gsUtils.isSuspendedTab(tab)) {
+      checkSuspendedTab(tab);
+      return;
+    }
 
-      // If tab is special or already discarded
-      if (gsUtils.isSpecialTab(tab) || gsUtils.isDiscardedTab(tab)) {
-        gsUtils.log(tab.id, 'Tab is special or discarded. Aborting tab check.');
-        return;
-      }
+    // If tab is special or already discarded
+    if (gsUtils.isSpecialTab(tab) || gsUtils.isDiscardedTab(tab)) {
+      gsUtils.log(tab.id, 'Tab is special or discarded. Aborting tab check.');
+      return;
+    }
 
-      // If tab is not responding (in loading state)
-      if (gsUtils.isNormalTab(tab) && tab.status === 'loading') {
-        gsUtils.log(tab.id, 'Tab is still loading');
-        // sometimes tab gets left in 'loading' state
-        // so check for unresponsive tabs here
-        checkForUnresponsiveTab(tab, preQueue);
-        return;
-      }
+    // If tab is not responding (in loading state)
+    if (gsUtils.isNormalTab(tab) && tab.status === 'loading') {
+      gsUtils.log(tab.id, 'Tab is still loading');
+      // sometimes tab gets left in 'loading' state
+      // so check for unresponsive tabs here
+      checkForUnresponsiveTab(tab, preQueue);
+      return;
+    }
 
-      // If tab is normal and fully loaded
-      if (gsUtils.isNormalTab(tab) && tab.status === 'complete') {
-        checkNormalTab(tab, preQueue);
-        return;
-      }
+    // If tab is normal and fully loaded
+    if (gsUtils.isNormalTab(tab) && tab.status === 'complete') {
+      checkNormalTab(tab, preQueue);
+      return;
+    }
 
-      gsUtils.log(tab.id, 'Tab in unknown state. Aborting tab check.');
-    });
+    gsUtils.log(tab.id, 'Tab in unknown state. Aborting tab check.');
   }
 
   function checkForUnresponsiveTab(tab, preQueue) {
@@ -137,7 +119,7 @@ var gsTabCheckManager = (function() {
 
   function checkNormalTab(tab, preQueue) {
     const queuedTabDetails = getQueuedTabDetails(tab.id);
-    if (queuedTabDetails && queuedTabDetails.executionProps.refetchTab) {
+    if (queuedTabDetails && queuedTabDetails.executionProps && queuedTabDetails.executionProps.refetchTab) {
       gsUtils.log(
         tab.id,
         'Refetching tab. Tab state may have changed since last check.',
@@ -164,7 +146,7 @@ var gsTabCheckManager = (function() {
     // Ensure we can access the chrome content scripts API
     if (
       !chrome.scripting &&
-      !chrome.tabs.executeScript
+      !chrome.scripting.executeScript
     ) {
       gsUtils.log(
         tab.id,
@@ -193,6 +175,10 @@ var gsTabCheckManager = (function() {
       return;
     }
 
+    validateScriptAndStayAwake(tab);
+  }
+
+  function validateScriptAndStayAwake(tab) {
     reinjectContentScriptOnTab(tab)
       .then(function(response) {
         if (response !== 'content_script_loaded') {
@@ -205,7 +191,6 @@ var gsTabCheckManager = (function() {
         }
 
         // Content script is loaded correctly, now check if we need to suspend
-        // gsUtils.log(tab.id, 'Content script verified. Continuing tab check.', response);
         validateStayAwake(tab);
       })
       .catch(function(error) {
@@ -217,7 +202,7 @@ var gsTabCheckManager = (function() {
       });
   }
 
-  async function reinjectContentScriptOnTab(tab) {
+  function reinjectContentScriptOnTab(tab) {
     gsUtils.log(tab.id, 'Injecting content script to verify tab state');
     return new Promise(function(resolve, reject) {
       try {
@@ -253,7 +238,7 @@ var gsTabCheckManager = (function() {
         gsUtils.log(tab.id, 'Found stay-awake review alarm. Performing check.');
 
         const suspensionToggleTime = gsStorage.fetchNoticeVersion('temporarily-disabled');
-        // If suspension has ot been toggled, or suspension has been re-enabled, then clear alarm and continue tab check
+        // If suspension has not been toggled, or suspension has been re-enabled, then clear alarm and continue tab check
         if (!suspensionToggleTime || !gsStorage.getOption(gsStorage.SUSPEND_PAUSED)) {
           chrome.alarms.clear('stayAwakeReview');
           gsUtils.log(tab.id, 'Tab auto-unwhitelisting not required.');
@@ -350,17 +335,28 @@ var gsTabCheckManager = (function() {
   }
 
   function performTabChecks() {
-    gsUtils.executeForEachTab(function(tab) {
-      gsTabCheckManager.queueTabCheck(tab);
-    });
+    // Use local implementation if gsUtils.executeForEachTab is not available
+    if (typeof gsUtils !== "undefined" && typeof gsUtils.executeForEachTab === "function") {
+      gsUtils.executeForEachTab(function(tab) {
+        gsTabCheckManager.queueTabCheck(tab);
+      });
+    } else {
+      console.log("Using local executeForEachTab implementation");
+      // Local implementation
+      chrome.tabs.query({}, function(tabs) {
+        if (tabs && tabs.length > 0) {
+          tabs.forEach(function(tab) {
+            gsTabCheckManager.queueTabCheck(tab);
+          });
+        }
+      });
+    }
   }
 
   return {
-    queueTabCheck,
-    unqueueTabCheck,
-    performTabChecks,
-    checkTabs: performTabChecks,
-    queueTabCheckAsPromise,
+    queueTabCheck: queueTabCheck,
+    unqueueTabCheck: unqueueTabCheck,
+    performTabChecks: performTabChecks
   };
 })();
 

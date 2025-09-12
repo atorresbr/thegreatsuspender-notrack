@@ -350,9 +350,21 @@ var gsTabCheckManager = (function() {
   }
 
   function performTabChecks() {
-    gsUtils.executeForEachTab(function(tab) {
-      gsTabCheckManager.queueTabCheck(tab);
-    });
+    // Use local implementation if gsUtils.executeForEachTab is not available
+    if (typeof gsUtils !== "undefined" && typeof gsUtils.executeForEachTab === "function") {
+      gsUtils.executeForEachTab(function(tab) {
+        gsTabCheckManager.queueTabCheck(tab);
+      });
+    } else {
+      console.log("Using local executeForEachTab implementation");
+      // Local implementation
+      chrome.tabs.query({}, function(tabs) {
+        tabs.forEach(function(tab) {
+          gsTabCheckManager.queueTabCheck(tab);
+        });
+      });
+    }
+  }
   }
 
   return {

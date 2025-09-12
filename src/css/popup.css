@@ -1,89 +1,87 @@
-/*
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-                - - /|_/|      .-------------------.
-  - _______________| @.@|     /      Styles by      )
--- (______         >\_C/< ---/    Liam Johnston    /
-  -  -   / ______  _/____)  (   @liamjohnstonnz   /
- -  -   / /\ \   \ \         `-------------------'
-   - (_/  \_) - \_)
-
-*/
-html,
 body {
-  margin: 0;
-  padding: 0;
-}
-html {
-  box-sizing: border-box;
-}
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
-}
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-    'Segoe UI Symbol';
-  color: #444;
-  padding: 0;
-  margin: 0;
-  min-width: 325px;
-  position: relative;
-  font-size: 15px;
-  background: #fff;
-}
-@media (min-resolution: 192dpi) {
-  body {
-    font-weight: 300;
-  }
+    width: 320px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
 }
 
-a {
-  outline: none;
-  color: #3477db;
-}
-#popupContent {
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-#statusDetail a {
-  color: #ffffff;
-}
-#header {
-  padding: 15px;
-  background: #777;
-  color: #fff;
-}
-#header.willSuspend {
-  background: #3477db;
-}
-#header.blockedFile {
-    background: #a70707;
+.popup-container {
+    padding: 20px;
 }
 
-.group {
-  padding: 10px 0;
-}
-.group:not(:last-of-type) {
-  border-bottom: 1px solid #ccc;
+h3 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 18px;
 }
 
-.menuOption {
-  line-height: 2em;
-  font-size: 16px;
-  white-space: nowrap;
-  cursor: pointer;
-  padding: 0 15px;
+.tab-info {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    text-align: center;
 }
-.menuOption:hover .optionText {
-  text-decoration: underline;
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
-/* dark theme for night lurkers */
-.dark {
-  background: #353535;
-  color: #b8b8b8;
+
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
-.dark .group {
-  border-color: #555;
+
+.btn-icon {
+    margin-right: 8px;
+}
+
+.btn.primary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.footer {
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-link:hover {
+    color: white;
 }

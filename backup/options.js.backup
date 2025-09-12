@@ -1,0 +1,461 @@
+/**
+ * Enhanced Options page script with GRADIENT GLASS EFFECTS and FIXED theme application
+ */
+(function() {
+  'use strict';
+
+  console.log('Options page with GRADIENT GLASS EFFECTS initializing...');
+
+  // Default options
+  const defaultOptions = {
+    'suspendTime': '60',
+    'dontSuspendPinned': true,
+    'dontSuspendForms': true,
+    'dontSuspendAudio': true,
+    'addContextMenu': true,
+    'syncSettings': false,
+    'whitelistUrls': '',
+    'keepTabsOnReload': true,
+    'autoRestoreTabs': true
+  };
+
+  // Theme system with FIXED gradients
+  let selectedTheme = 'purple';
+  const themeGradients = {
+    purple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    ocean: 'linear-gradient(135deg, #667db6 0%, #0082c8 100%)',
+    sunset: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+    forest: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
+    fire: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+    lavender: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    cosmic: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    emerald: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    rose: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    sky: 'linear-gradient(135deg, #74b9ff 0%, #0084e3 100%)',
+    peach: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+    mint: 'linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%)',
+    golden: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)',
+    berry: 'linear-gradient(135deg, #8360c3 0%, #2ebf91 100%)',
+    coral: 'linear-gradient(135deg, #ff9a56 0%, #ff6b95 100%)',
+    aurora: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+    dark: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+    midnight: 'linear-gradient(135deg, #0f0f23 0%, #2d1b69 100%)'
+  };
+
+  // FIXED Light themes (for DARK text) - more comprehensive detection
+  const lightThemes = ['sunset', 'lavender', 'peach', 'mint', 'coral', 'golden'];
+  // Dark themes (for glass effect adjustment)
+  const darkThemes = ['dark', 'midnight', 'forest', 'purple', 'ocean', 'cosmic', 'emerald', 'fire', 'berry', 'sky', 'aurora', 'rose'];
+
+  let backgroundPage = null;
+  let systemBehavior = 'force';
+
+  // Initialize
+  async function init() {
+    console.log('Initializing options page with GRADIENT GLASS EFFECTS...');
+    
+    // Try to connect to background
+    await initializeBackgroundConnection();
+    
+    // Load settings
+    await loadAllSettings();
+    
+    // Load theme settings
+    await loadThemeSettings();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Set up system theme behavior monitoring
+    setupSystemBehaviorMonitoring();
+    
+    // Set up tab preservation controls
+    setupTabPreservationControls();
+    
+    console.log('Options page initialized with GRADIENT GLASS EFFECTS');
+  }
+
+  // Try to get background page or set up messaging
+  async function initializeBackgroundConnection() {
+    if (chrome.extension && chrome.extension.getBackgroundPage) {
+      try {
+        backgroundPage = chrome.extension.getBackgroundPage();
+        if (backgroundPage && backgroundPage.gsStorage) {
+          console.log('Connected to background page directly');
+          return;
+        }
+      } catch (e) {
+        console.log('Direct background access failed:', e);
+      }
+    }
+    console.log('Using chrome.storage for settings');
+    backgroundPage = null;
+  }
+
+  // Load all settings
+  async function loadAllSettings() {
+    const optionElements = document.querySelectorAll('[data-option]');
+    
+    for (const element of optionElements) {
+      const optionKey = element.getAttribute('data-option');
+      const value = await getSetting(optionKey);
+      
+      if (element.type === 'checkbox') {
+        element.checked = value;
+      } else {
+        element.value = value;
+      }
+    }
+  }
+
+  // Get a setting value
+  async function getSetting(key) {
+    // Try background page first
+    if (backgroundPage && backgroundPage.gsStorage && backgroundPage.gsStorage.getOption) {
+      try {
+        return await backgroundPage.gsStorage.getOption(key);
+      } catch (error) {
+        console.warn('Error getting setting from background:', error);
+      }
+    }
+    
+    // Fall back to chrome.storage
+    return new Promise((resolve) => {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get([key], (result) => {
+          if (chrome.runtime.lastError) {
+            console.warn('Storage error:', chrome.runtime.lastError);
+            resolve(defaultOptions[key]);
+          } else {
+            resolve(result[key] !== undefined ? result[key] : defaultOptions[key]);
+          }
+        });
+      } else {
+        resolve(defaultOptions[key]);
+      }
+    });
+  }
+
+  // Set a setting value
+  async function setSetting(key, value) {
+    // Try background page first
+    if (backgroundPage && backgroundPage.gsStorage && backgroundPage.gsStorage.setOption) {
+      try {
+        await backgroundPage.gsStorage.setOption(key, value);
+        showSaveStatus();
+        return;
+      } catch (error) {
+        console.warn('Error setting via background:', error);
+      }
+    }
+    
+    // Fall back to chrome.storage
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ [key]: value }, () => {
+        if (!chrome.runtime.lastError) {
+          showSaveStatus();
+        }
+      });
+    }
+  }
+
+  // FIXED System behavior monitoring
+  function setupSystemBehaviorMonitoring() {
+    // Monitor system theme changes
+    if (window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addListener(function(e) {
+        console.log('System theme changed:', e.matches ? 'dark' : 'light');
+        if (systemBehavior === 'auto') {
+          applySystemTheme();
+        }
+      });
+    }
+
+    // Monitor time-based changes (check every minute)
+    setInterval(() => {
+      if (systemBehavior === 'time') {
+        applySystemTheme();
+      }
+    }, 60000);
+  }
+
+  // Set up tab preservation controls
+  function setupTabPreservationControls() {
+    const backupBtn = document.getElementById('backupTabs');
+    const restoreBtn = document.getElementById('restoreTabs');
+
+    if (backupBtn) {
+      backupBtn.addEventListener('click', function() {
+        chrome.runtime.sendMessage({ action: 'backupTabs' }, function(response) {
+          if (response && response.success) {
+            showTabPreservationStatus('✅ Backed up ' + response.count + ' suspended tabs!');
+          } else {
+            showTabPreservationStatus('❌ Backup failed. Please try again.');
+          }
+        });
+      });
+    }
+
+    if (restoreBtn) {
+      restoreBtn.addEventListener('click', function() {
+        chrome.runtime.sendMessage({ action: 'restoreTabs' }, function(response) {
+          if (response && response.success) {
+            showTabPreservationStatus('✅ Restored backed up tabs!');
+          } else {
+            showTabPreservationStatus('❌ Restore failed. No tabs to restore.');
+          }
+        });
+      });
+    }
+
+    // Show current suspended tab count
+    chrome.runtime.sendMessage({ action: 'getSuspendedCount' }, function(response) {
+      if (response && response.count > 0) {
+        showTabPreservationStatus('📊 Currently tracking ' + response.count + ' suspended tabs');
+      }
+    });
+  }
+
+  // Show tab preservation status
+  function showTabPreservationStatus(message) {
+    const status = document.getElementById('themeStatus');
+    if (status) {
+      status.textContent = message;
+      status.className = 'theme-status success';
+      setTimeout(() => {
+        status.textContent = '';
+        status.className = 'theme-status';
+      }, 4000);
+    }
+  }
+
+  // Apply system-based theme
+  function applySystemTheme() {
+    let effectiveTheme = selectedTheme;
+    let effectiveGradient = themeGradients[selectedTheme];
+
+    if (systemBehavior === 'auto') {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        if (!darkThemes.includes(selectedTheme)) {
+          effectiveTheme = 'dark';
+          effectiveGradient = themeGradients.dark;
+        }
+      }
+    } else if (systemBehavior === 'time') {
+      const hour = new Date().getHours();
+      if (hour < 6 || hour > 20) { // Night time (8 PM to 6 AM)
+        if (!darkThemes.includes(selectedTheme)) {
+          effectiveTheme = 'midnight';
+          effectiveGradient = themeGradients.midnight;
+        }
+      }
+    }
+
+    console.log('Applying system theme:', effectiveTheme, 'behavior:', systemBehavior);
+    
+    // Apply the effective theme
+    applyThemeToOptionsPage(effectiveTheme, effectiveGradient);
+    
+    // Update storage with effective theme
+    chrome.storage.local.set({
+      effectiveTheme: effectiveTheme,
+      effectiveGradient: effectiveGradient
+    });
+
+    // Apply to suspended tabs
+    applyThemeToSuspendedTabs(effectiveTheme, effectiveGradient);
+  }
+
+  // Theme system functions
+  async function loadThemeSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['selectedTheme', 'systemBehavior'], (result) => {
+        selectedTheme = result.selectedTheme || 'purple';
+        systemBehavior = result.systemBehavior || 'force';
+        
+        console.log('Loaded theme settings:', { selectedTheme, systemBehavior });
+        
+        // Update UI
+        document.querySelectorAll('.theme-option').forEach(option => {
+          option.classList.remove('selected');
+          if (option.dataset.theme === selectedTheme) {
+            option.classList.add('selected');
+          }
+        });
+        
+        const systemBehaviorSelect = document.getElementById('systemBehavior');
+        if (systemBehaviorSelect) {
+          systemBehaviorSelect.value = systemBehavior;
+        }
+        
+        // Apply theme based on system behavior
+        applySystemTheme();
+        updateThemePreview();
+        resolve();
+      });
+    });
+  }
+
+  function updateThemePreview() {
+    const preview = document.getElementById('themePreview');
+    if (preview) {
+      const gradient = themeGradients[selectedTheme];
+      preview.style.setProperty('--preview-gradient', gradient);
+    }
+  }
+
+  // FIXED theme application with GRADIENT GLASS EFFECTS
+  function applyThemeToOptionsPage(themeName = selectedTheme, gradient = themeGradients[selectedTheme]) {
+    console.log('Applying GRADIENT GLASS theme to options page:', themeName, 'isLight:', lightThemes.includes(themeName));
+    
+    // Apply to CSS custom property
+    document.documentElement.style.setProperty('--options-current-gradient', gradient);
+    
+    // Apply theme class to body
+    document.body.classList.add('options-theme-applied');
+    
+    // Remove existing theme classes
+    document.body.classList.remove('light-theme', 'dark-theme');
+    // Remove all theme-specific classes
+    document.body.className = document.body.className.replace(/theme-\w+/g, '');
+    
+    // Add theme-specific class for gradient glass colors
+    document.body.classList.add('theme-' + themeName);
+    
+    // Add appropriate theme class based on FIXED detection
+    if (lightThemes.includes(themeName)) {
+      document.body.classList.add('light-theme');
+      console.log('Applied light theme class for:', themeName);
+    } else {
+      document.body.classList.add('dark-theme');
+      console.log('Applied dark theme class for:', themeName);
+    }
+  }
+
+  // FIXED theme application to ALL suspended tabs
+  function applyThemeToSuspendedTabs(themeName = selectedTheme, gradient = themeGradients[selectedTheme]) {
+    console.log('Applying GRADIENT GLASS theme to suspended tabs:', themeName);
+    
+    // Update storage first
+    chrome.storage.local.set({
+      selectedTheme: selectedTheme,
+      themeGradient: gradient,
+      effectiveTheme: themeName,
+      effectiveGradient: gradient,
+      systemBehavior: systemBehavior
+    }, () => {
+      // Query all tabs and send message to suspended ones
+      chrome.tabs.query({}, function(tabs) {
+        tabs.forEach(tab => {
+          if (tab.url && (tab.url.includes('suspended.html') || tab.url.includes('suspended_tab'))) {
+            console.log('Sending GRADIENT GLASS theme update to tab:', tab.id, themeName);
+            // Send message to suspended tab to update theme
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'updateTheme',
+              theme: themeName,
+              gradient: gradient,
+              isLight: lightThemes.includes(themeName)
+            }, function(response) {
+              if (chrome.runtime.lastError) {
+                console.log('Could not send theme message to tab:', tab.id, chrome.runtime.lastError.message);
+              } else {
+                console.log('GRADIENT GLASS theme message sent successfully to tab:', tab.id);
+              }
+            });
+          }
+        });
+      });
+    });
+  }
+
+  function saveThemeSettings() {
+    const systemBehaviorSelect = document.getElementById('systemBehavior');
+    systemBehavior = systemBehaviorSelect ? systemBehaviorSelect.value : 'force';
+    
+    console.log('Saving GRADIENT GLASS theme settings:', { selectedTheme, systemBehavior });
+    
+    chrome.storage.local.set({
+      selectedTheme: selectedTheme,
+      systemBehavior: systemBehavior,
+      themeGradient: themeGradients[selectedTheme]
+    }, () => {
+      const status = document.getElementById('themeStatus');
+      if (status) {
+        status.textContent = '✅ GRADIENT GLASS theme saved and applied!';
+        status.className = 'theme-status success';
+        setTimeout(() => {
+          status.textContent = '';
+          status.className = 'theme-status';
+        }, 3000);
+      }
+      
+      // Apply system theme after saving
+      applySystemTheme();
+    });
+  }
+
+  // Set up event listeners
+  function setupEventListeners() {
+    // Regular option elements
+    const optionElements = document.querySelectorAll('[data-option]');
+    
+    optionElements.forEach((element) => {
+      element.addEventListener('change', async function() {
+        const optionKey = this.getAttribute('data-option');
+        let value;
+        
+        if (this.type === 'checkbox') {
+          value = this.checked;
+        } else {
+          value = this.value;
+        }
+        
+        await setSetting(optionKey, value);
+      });
+    });
+
+    // Theme selection with INSTANT GRADIENT GLASS application
+    document.querySelectorAll('.theme-option').forEach(option => {
+      option.addEventListener('click', function() {
+        document.querySelectorAll('.theme-option').forEach(opt => opt.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedTheme = this.dataset.theme;
+        
+        // INSTANT GRADIENT GLASS application
+        updateThemePreview();
+        saveThemeSettings();
+        
+        console.log('GRADIENT GLASS theme changed to:', selectedTheme);
+      });
+    });
+
+    // System behavior change with INSTANT application
+    const systemBehaviorSelect = document.getElementById('systemBehavior');
+    if (systemBehaviorSelect) {
+      systemBehaviorSelect.addEventListener('change', function() {
+        systemBehavior = this.value;
+        console.log('System behavior changed to:', systemBehavior);
+        saveThemeSettings();
+      });
+    }
+  }
+
+  // Show save status
+  function showSaveStatus() {
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      status.classList.add('show');
+      setTimeout(() => {
+        status.classList.remove('show');
+      }, 2000);
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

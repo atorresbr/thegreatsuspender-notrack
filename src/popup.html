@@ -1,56 +1,34 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-
 <head>
-	<link type="text/css" href="css/popup.css" rel="stylesheet">
-	<script type="text/javascript" src="js/popup.js"></script>
-
+    <meta charset="utf-8">
+    <title>The Great Suspender</title>
+    <link rel="stylesheet" href="css/popup.css">
 </head>
-
 <body>
-	<div id="header">
-		<span id="statusDetail"></span>
-	</div>
-	<div id="popupContent">
-		<div class="group" id="optsCurrent">
-			<div class="menuOption" id="unsuspendOne">
-				<span class="optionText" data-i18n="__MSG_html_popup_unsuspend_tab__"></span>
-			</div>
-			<div class="menuOption" id="suspendOne">
-				<span class="optionText" data-i18n="__MSG_html_popup_suspend_tab__"></span>
-			</div>
-			<div class="menuOption" id="whitelistPage">
-				<span class="optionText" data-i18n="__MSG_html_popup_never_suspend_page__"></span>
-			</div>
-			<div class="menuOption" id="whitelistDomain">
-				<span class="optionText" data-i18n="__MSG_html_popup_never_suspend_domain__"></span>
-			</div>
-		</div>
-
-		<div class="group" id="optsSelected">
-			<div class="menuOption" id="suspendSelected">
-				<span class="optionText" data-i18n="__MSG_html_popup_suspend_selected_tabs__"></span>
-			</div>
-			<div class="menuOption" href="#" id="unsuspendSelected">
-				<span class="optionText" data-i18n="__MSG_html_popup_unsuspend_selected_tabs__"></span>
-			</div>
-		</div>
-
-		<div class="group" id="optsAll">
-			<div class="menuOption" id="suspendAll">
-				<span class="optionText" data-i18n="__MSG_html_popup_suspend_other_tabs__"></span>
-			</div>
-			<div class="menuOption" href="#" id="unsuspendAll">
-				<span class="optionText" data-i18n="__MSG_html_popup_unsuspend_all_tabs__"></span>
-			</div>
-		</div>
-
-		<div class="group">
-			<div class="menuOption" id="settingsLink">
-				<span class="optionText" data-i18n="__MSG_html_popup_settings__"></span>
-			</div>
-		</div>
-	</div>
+    <div class="popup-container">
+        <h3>The Great Suspender</h3>
+        <div class="tab-info" id="tabInfo">
+            <span id="tabTitle">Current Tab</span>
+        </div>
+        <div class="button-group">
+            <button class="btn primary" id="suspendTab">
+                <span class="btn-icon">💤</span>
+                Suspend This Tab
+            </button>
+            <button class="btn secondary" id="suspendOther">
+                <span class="btn-icon">🔄</span>
+                Suspend Other Tabs
+            </button>
+            <button class="btn secondary" id="unsuspendAll">
+                <span class="btn-icon">⚡</span>
+                Unsuspend All
+            </button>
+        </div>
+        <div class="footer">
+            <button class="btn-link" id="openOptions">Settings</button>
+        </div>
+    </div>
+    <script src="js/popup.js"></script>
 </body>
-
 </html>

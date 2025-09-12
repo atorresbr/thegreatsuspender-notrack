@@ -1,166 +1,67 @@
 /**
- * The Great Suspender - NoTrack
- * Background Service Worker Wrapper for Manifest V3
+ * Manifest V3 Service Worker Background Script
  */
-'use strict';
 
-// Global error handlers
-self.addEventListener('error', function(event) {
-  console.error('Global error:', event.message, event.filename, event.lineno);
+console.log('Service worker loaded');
+
+// Manifest V3 service worker initialization
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Extension installed');
+  
+  // Set default settings
+  chrome.storage.local.set({
+    extensionEnabled: true,
+    autoSuspendTime: 20,
+    theme: 'purple'
+  });
 });
 
-self.addEventListener('unhandledrejection', function(event) {
-  console.error('Unhandled rejection:', event.reason);
+// Handle extension startup
+chrome.runtime.onStartup.addListener(() => {
+  console.log('Extension startup');
 });
 
-// Load registry first to ensure all objects are available
-importScripts('gsRegistry.js');
+// Message handling for Manifest V3
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Service worker received message:', request);
+  
+  switch(request.action) {
+    case 'getStatus':
+      sendResponse({success: true, status: 'Extension is running'});
+      break;
+    case 'suspendTab':
+      handleSuspendTab(request.tabId);
+      sendResponse({success: true});
+      break;
+    default:
+      sendResponse({success: false, error: 'Unknown action'});
+  }
+  
+  return true;
+});
 
-// Immediate patch for chrome.extension APIs before anything else runs
-if (!chrome.extension) {
-  chrome.extension = {};
-}
-chrome.extension.getURL = chrome.runtime.getURL;
-chrome.extension.getBackgroundPage = function() {
-  console.log('chrome.extension.getBackgroundPage is not available in Manifest V3');
-  return self;
-};
-chrome.extension.getViews = function() {
-  console.log('chrome.extension.getViews is not available in Manifest V3');
-  return [];
-};
-chrome.extension.isAllowedIncognitoAccess = chrome.runtime.isAllowedIncognitoAccess;
-chrome.extension.isAllowedFileSchemeAccess = chrome.runtime.isAllowedFileSchemeAccess;
-Object.defineProperty(chrome.extension, 'inIncognitoContext', {
-  get: function() {
-    return false;
+// Tab monitoring
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete') {
+    console.log('Tab updated:', tabId, tab.url);
   }
 });
 
-// Create essential global objects before importing scripts
-self.window = self;
-self.document = {
-  createElement: function() {
-    return {
-      style: {},
-      setAttribute: function() {},
-      appendChild: function() {},
-      addEventListener: function() {},
-      removeEventListener: function() {},
-    };
-  },
-  addEventListener: function() {},
-  removeEventListener: function() {}
-};
-
-// Now import our compatibility adapter
-importScripts('gsManifestV3Adapter.js');
-
-console.log('Adapter loaded, localStorage available:', typeof localStorage !== 'undefined');
-console.log('chrome.extension.getURL available:', typeof chrome.extension.getURL === 'function');
-
-// Import all background scripts in the correct order with explicit error handling
-try {
-  importScripts('gsUtils.js');
-  console.log('Loaded: gsUtils.js');
-  
-  importScripts('gsChrome.js');
-  console.log('Loaded: gsChrome.js');
-  
-  importScripts('gsStorage.js');
-  console.log('Loaded: gsStorage.js');
-  
-  importScripts('db.js');
-  console.log('Loaded: db.js');
-  
-  importScripts('gsIndexedDb.js');
-  console.log('Loaded: gsIndexedDb.js');
-  
-  importScripts('gsMessages.js');
-  console.log('Loaded: gsMessages.js');
-  
-  importScripts('gsSession.js');
-  console.log('Loaded: gsSession.js');
-  
-  importScripts('gsTabQueue.js');
-  console.log('Loaded: gsTabQueue.js');
-  
-  importScripts('gsTabCheckManager.js');
-  console.log('Loaded: gsTabCheckManager.js');
-  
-  importScripts('gsFavicon.js');
-  console.log('Loaded: gsFavicon.js');
-  
-  importScripts('gsCleanScreencaps.js');
-  console.log('Loaded: gsCleanScreencaps.js');
-  
-  importScripts('gsTabSuspendManager.js');
-  console.log('Loaded: gsTabSuspendManager.js');
-  
-  importScripts('gsTabDiscardManager.js');
-  console.log('Loaded: gsTabDiscardManager.js');
-  
-  importScripts('gsSuspendedTab.js');
-  console.log('Loaded: gsSuspendedTab.js');
-  
-  importScripts('background.js');
-importScripts('gsDebugHelper.js');
-importScripts('gsDebugHelper.js');
-  console.log('Loaded: background.js');
-} catch (err) {
-  console.error('Error loading scripts:', err);
+// Basic suspend functionality
+async function handleSuspendTab(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab && !tab.url.includes('chrome://') && !tab.url.includes('suspended.html')) {
+      const suspendedUrl = chrome.runtime.getURL('suspended.html') + 
+        '?url=' + encodeURIComponent(tab.url) + 
+        '&title=' + encodeURIComponent(tab.title);
+      
+      await chrome.tabs.update(tabId, {url: suspendedUrl});
+      console.log('Tab suspended:', tabId);
+    }
+  } catch (error) {
+    console.error('Error suspending tab:', error);
+  }
 }
 
-// Add online/offline event handlers here at initialization time
-self.addEventListener('online', function() {
-  if (typeof gsUtils !== 'undefined' && typeof gsStorage !== 'undefined') {
-    gsUtils.log('background', 'Internet is online.');
-    //restart timer on all normal tabs
-    if (gsStorage.getOption && gsStorage.getOption(gsStorage.IGNORE_WHEN_OFFLINE)) {
-      if (typeof tgs !== 'undefined' && typeof tgs.resetAutoSuspendTimerForAllTabs === 'function') {
-        tgs.resetAutoSuspendTimerForAllTabs();
-      }
-    }
-    if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
-      tgs.setIconStatusForActiveTab();
-    }
-  }
-});
-
-self.addEventListener('offline', function() {
-  if (typeof gsUtils !== 'undefined') {
-    gsUtils.log('background', 'Internet is offline.');
-    if (typeof tgs !== 'undefined' && typeof tgs.setIconStatusForActiveTab === 'function') {
-      tgs.setIconStatusForActiveTab();
-    }
-  }
-});
-
-// Service worker lifecycle events
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  console.log('Great Suspender service worker installed');
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('Great Suspender service worker activated');
-  event.waitUntil(clients.claim());
-});
-
-// Ensure service worker stays alive with periodic alarms
-chrome.alarms.create('keepAlive', { periodInMinutes: 1 });
-chrome.alarms.create('checkTabs', { periodInMinutes: 1 });
-
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'checkTabs') {
-    // This simulates the periodic checks that the original extension did with setInterval
-    if (typeof gsTabCheckManager !== 'undefined' && gsTabCheckManager.performTabChecks) {
-      console.log('Running periodic tab checks');
-      gsTabCheckManager.performTabChecks();
-    }
-  } else if (alarm.name === 'keepAlive') {
-    console.log('Service worker keepAlive ping');
-  }
-});
-
-console.log('Great Suspender background wrapper loaded');
+console.log('Service worker initialized');

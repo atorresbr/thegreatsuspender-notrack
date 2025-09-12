@@ -8,48 +8,47 @@ var gsDebugHelper = (function() {
   function injectDebugMonitor() {
     console.log('🔍 Debug monitor injected');
     
-    // Check if suspension works
-    chrome.commands.onCommand.addListener(function(command) {
-      console.log('Command received:', command);
-      if (command === '1-suspend-tab') {
-        console.log('Trying to suspend current tab...');
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (tabs && tabs.length > 0) {
-            const activeTab = tabs[0];
-            console.log('Active tab:', activeTab);
-            
-            // Try to suspend through background page
+    // Check if tgs is available and hook into it
+    if (typeof tgs !== 'undefined') {
+      const originalSuspendTab = tgs.suspendTab;
+      if (originalSuspendTab) {
+        tgs.suspendTab = function(tab) {
+          console.log('🔄 tgs.suspendTab called with tab:', tab);
+          return originalSuspendTab.apply(this, arguments);
+        };
+      } else {
+        console.warn('tgs.suspendTab not available for monitoring');
+      }
+    } else {
+      console.warn('tgs object not available for monitoring');
+    }
+    
+    // Create a context menu for debugging
+    if (chrome.contextMenus) {
+      try {
+        chrome.contextMenus.create({
+          id: 'debug-suspend-tab',
+          title: 'Debug: Suspend Tab',
+          contexts: ['page'],
+          documentUrlPatterns: ['http://*/*', 'https://*/*'],
+          onclick: function(info, tab) {
+            console.log('Debug suspend clicked for:', tab);
             if (typeof tgs !== 'undefined' && tgs.suspendTab) {
-              console.log('Calling tgs.suspendTab...');
-              tgs.suspendTab(activeTab);
+              tgs.suspendTab(tab);
             } else {
-              console.error('tgs.suspendTab not available!');
-              
-              // Try direct message
-              chrome.tabs.sendMessage(
-                activeTab.id,
-                { action: 'suspendTab' },
-                function(response) {
-                  console.log('Direct suspension response:', response);
-                }
-              );
+              console.error('tgs.suspendTab not available');
             }
           }
         });
+      } catch(e) {
+        console.error('Error creating debug context menu:', e);
       }
-    });
-    
-    // Intercept tab suspension attempts
-    const originalSuspendTab = tgs && tgs.suspendTab;
-    if (originalSuspendTab) {
-      tgs.suspendTab = function(tab) {
-        console.log('🔄 tgs.suspendTab called with tab:', tab);
-        return originalSuspendTab.apply(this, arguments);
-      };
     }
+    
+    console.log('Debug monitor setup complete');
   }
   
-  // Inject monitoring after a delay to ensure everything is loaded
+  // Wait a bit longer to ensure everything is loaded
   setTimeout(injectDebugMonitor, 5000);
   
   return {
