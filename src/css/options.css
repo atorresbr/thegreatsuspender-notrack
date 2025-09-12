@@ -633,3 +633,54 @@ body.light-theme {
 .card:nth-child(3) { animation-delay: 0.3s; }
 .card:nth-child(4) { animation-delay: 0.4s; }
 .card:nth-child(5) { animation-delay: 0.5s; }
+
+/* Fix for select dropdown text color */
+.settings-section select {
+  color: #333;
+  background-color: white;
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  appearance: auto;
+}
+
+.settings-section select:focus {
+  outline: 2px solid var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+/* Style for dropdown options to ensure they're visible */
+.settings-section select option {
+  color: #333;
+  background-color: white;
+  padding: 8px;
+}
+
+/* Dark theme adjustments */
+body.dark-theme .settings-section select {
+  color: #eee;
+  background-color: #333;
+  border-color: #555;
+}
+
+body.dark-theme .settings-section select option {
+  color: #eee;
+  background-color: #333;
+}
+
+/* Make sure text is visible in all themes */
+.theme-dark select,
+.theme-midnight select,
+.theme-cosmic select,
+.theme-forest select {
+  color: #eee;
+  background-color: rgba(40, 40, 40, 0.8);
+}
+
+/* Fix hover states */
+.settings-section select option:hover,
+.settings-section select option:focus {
+  background-color: var(--accent-color);
+  color: white;
+}
