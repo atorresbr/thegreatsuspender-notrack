@@ -63,8 +63,7 @@
       "popup.html",
       "css/*",
       "img/*",
-      "js/*",
-      "font/*"
+      "js/*"
     ],
     "matches": ["<all_urls>"]
   }]

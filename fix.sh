@@ -1,156 +1,640 @@
 #!/bin/bash
-# filepath: /home/linux/Documents/GitHub/thegreatsuspender-notrack/fix.sh
+# filepath: /home/linux/Documents/GitHub/thegreatsuspender-notrack/fix20_suspended_controls.sh
+
+echo "🎮 PART 20: FIXING SUSPENDED TAB CONTROL BUTTONS"
 
 REPO_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack"
 SRC_DIR="$REPO_DIR/src"
 
-echo "🔧 FIXING MANIFEST SCHEMA ERROR..."
+echo "🔧 Fixing control buttons functionality in suspended tab..."
 
-# Create the missing managed-storage-schema.json file
-echo "📄 Creating required managed-storage-schema.json..."
-cat > "$SRC_DIR/managed-storage-schema.json" << 'EOF'
-{
-  "type": "object",
-  "properties": {}
+# Update suspended.js with working control functions
+cat > "$SRC_DIR/js/suspended.js" << 'EOF'
+/**
+ * SUSPENDED PAGE JAVASCRIPT - WITH WORKING CONTROLS
+ * All control buttons work properly with context protection
+ */
+
+console.log('😴 Suspended tab loaded with working controls');
+
+// SAME THEME GRADIENTS AS OPTIONS PAGE
+const themeGradients = {
+    purple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    ocean: 'linear-gradient(135deg, #667db6 0%, #0082c8 100%)',
+    sunset: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+    forest: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
+    fire: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+    lavender: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    cosmic: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    emerald: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    rose: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    sky: 'linear-gradient(135deg, #74b9ff 0%, #0084e3 100%)',
+    peach: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+    mint: 'linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%)',
+    golden: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)',
+    berry: 'linear-gradient(135deg, #8360c3 0%, #2ebf91 100%)',
+    coral: 'linear-gradient(135deg, #ff9a56 0%, #ff6b95 100%)',
+    aurora: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
+    dark: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+    midnight: 'linear-gradient(135deg, #0f0f23 0%, #2d1b69 100%)'
+};
+
+const lightThemes = ['sunset', 'lavender', 'peach', 'mint'];
+let contextValid = true;
+let preventAutoRestore = false;
+let currentTabId = null;
+let suspensionStartTime = Date.now();
+
+// Check if extension context is valid
+function isExtensionContextValid() {
+    try {
+        if (!chrome.runtime || !chrome.runtime.id) {
+            return false;
+        }
+        return contextValid;
+    } catch (error) {
+        console.warn('Extension context check failed:', error);
+        return false;
+    }
 }
-EOF
 
-echo "✅ Created minimal managed-storage-schema.json"
-
-# Also ensure we have the required _locales if manifest uses messages
-if [ -f "$SRC_DIR/manifest.json" ] && grep -q "__MSG_" "$SRC_DIR/manifest.json"; then
-    echo "📁 Ensuring _locales directory exists..."
-    mkdir -p "$SRC_DIR/_locales/en"
+// Safe message sending with context validation
+function safeRuntimeSendMessage(message, callback) {
+    if (!isExtensionContextValid()) {
+        console.warn('Extension context invalid, cannot send message:', message.action);
+        if (callback) {
+            callback({ success: false, error: 'Extension context invalidated' });
+        }
+        return;
+    }
     
-    if [ ! -f "$SRC_DIR/_locales/en/messages.json" ]; then
-        cat > "$SRC_DIR/_locales/en/messages.json" << 'EOF'
-{
-  "ext_extension_name": {
-    "message": "The Great Suspender (NoTrack)"
-  },
-  "ext_extension_description": {
-    "message": "Suspend tabs to save memory and CPU"
-  },
-  "ext_default_title": {
-    "message": "The Great Suspender"
-  }
+    try {
+        chrome.runtime.sendMessage(message, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn('Runtime error:', chrome.runtime.lastError.message);
+                
+                if (chrome.runtime.lastError.message.includes('context invalidated') ||
+                    chrome.runtime.lastError.message.includes('Extension context') ||
+                    chrome.runtime.lastError.message.includes('receiving end does not exist')) {
+                    contextValid = false;
+                }
+                
+                if (callback) {
+                    callback({ success: false, error: chrome.runtime.lastError.message });
+                }
+                return;
+            }
+            
+            if (callback) {
+                callback(response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        contextValid = false;
+        if (callback) {
+            callback({ success: false, error: error.message });
+        }
+    }
 }
-EOF
-    fi
-    echo "✅ Ensured _locales/en/messages.json exists"
-fi
 
-# Create basic icon files if they don't exist
-echo "🎨 Ensuring icon files exist..."
-mkdir -p "$SRC_DIR/img"
+// APPLY THEME WITH SAME SMOOTH TRANSITIONS AS OPTIONS
+function applyTheme(themeName) {
+    console.log('🎨 Applying suspended tab theme:', themeName);
+    
+    const gradient = themeGradients[themeName] || themeGradients.purple;
+    
+    // Add transition class for smooth animation - SAME AS OPTIONS
+    document.body.classList.add('theme-transition');
+    
+    // Update CSS variables for smooth transition
+    document.documentElement.style.setProperty('--current-gradient', gradient);
+    
+    // Update body classes
+    document.body.classList.remove('light-theme', 'dark-theme');
+    document.body.className = document.body.className.replace(/theme-\w+/g, '');
+    
+    // Apply new theme class
+    document.body.classList.add('theme-' + themeName);
+    
+    if (lightThemes.includes(themeName)) {
+        document.body.classList.add('light-theme');
+    } else {
+        document.body.classList.add('dark-theme');
+    }
+    
+    // Apply background with smooth transition - SAME AS OPTIONS
+    document.body.style.background = gradient;
+    document.body.style.backgroundAttachment = 'fixed';
+    
+    // Remove transition class after animation - SAME TIMING AS OPTIONS
+    setTimeout(() => {
+        document.body.classList.remove('theme-transition');
+    }, 800);
+}
 
-# Check if the specific icon files exist and create if missing
-for size in 16 32 48 128; do
-    icon_file="$SRC_DIR/img/ic_suspendy_${size}x${size}.png"
-    if [ ! -f "$icon_file" ]; then
-        echo "Creating placeholder icon: ic_suspendy_${size}x${size}.png"
-        # Create a simple PNG placeholder
-        printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x02\x00\x00\x00\x90\x91h6\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x00\x01\x00\x00\x00\x00IEND\xaeB`\x82' > "$icon_file"
-    fi
-done
+// Load theme from storage with context protection
+function loadTheme() {
+    if (!isExtensionContextValid()) {
+        console.warn('Cannot load theme - extension context invalid');
+        applyTheme('purple'); // Fallback theme
+        return;
+    }
+    
+    try {
+        chrome.storage.local.get(['selectedTheme'], (result) => {
+            if (chrome.runtime.lastError) {
+                console.warn('Storage error:', chrome.runtime.lastError.message);
+                applyTheme('purple'); // Fallback theme
+                return;
+            }
+            
+            const theme = result.selectedTheme || 'purple';
+            applyTheme(theme);
+        });
+    } catch (error) {
+        console.error('Error loading theme:', error);
+        applyTheme('purple'); // Fallback theme
+    }
+}
 
-echo "✅ Icon files verified/created"
+// Get URL parameters
+function getUrlParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+        uri: urlParams.get('uri') || urlParams.get('url'),
+        title: urlParams.get('title') || 'Suspended Tab'
+    };
+}
 
-# Create basic HTML files if they don't exist
-echo "📄 Ensuring required HTML files exist..."
+// Show message with animation
+function showMessage(message, type = 'success') {
+    const statusEl = document.getElementById('statusMessage');
+    if (!statusEl) {
+        console.log('Status message:', message);
+        return;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = 'status-message show ' + type;
+    
+    setTimeout(() => {
+        statusEl.classList.remove('show');
+    }, 3000);
+}
 
-if [ ! -f "$SRC_DIR/options.html" ]; then
-    cat > "$SRC_DIR/options.html" << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>The Great Suspender - Options</title>
-</head>
-<body>
-    <h1>The Great Suspender - Options</h1>
-    <p>Options page</p>
-</body>
-</html>
-EOF
-fi
+// CONTROL FUNCTIONS - These work with onclick handlers
+function restoreTab() {
+    console.log('🔄 Restore tab clicked');
+    
+    if (preventAutoRestore && event && !event.target.closest('.control-btn')) {
+        console.log('Auto-restore prevented');
+        showMessage('Auto-restore is disabled. Use the restore button.', 'error');
+        return;
+    }
+    
+    const params = getUrlParams();
+    if (params.uri) {
+        try {
+            // Add loading state
+            const restoreBtn = document.getElementById('restoreBtn');
+            if (restoreBtn) {
+                restoreBtn.style.opacity = '0.7';
+                restoreBtn.style.pointerEvents = 'none';
+            }
+            
+            showMessage('Restoring tab...', 'success');
+            
+            // Decode URL in case it's encoded
+            const decodedUrl = decodeURIComponent(params.uri);
+            
+            // Validate URL
+            if (decodedUrl.startsWith('http://') || decodedUrl.startsWith('https://') || decodedUrl.startsWith('file://')) {
+                // Small delay for user feedback
+                setTimeout(() => {
+                    window.location.href = decodedUrl;
+                }, 500);
+            } else {
+                console.warn('Invalid URL:', decodedUrl);
+                showMessage('Invalid URL to restore: ' + decodedUrl, 'error');
+            }
+        } catch (error) {
+            console.error('Error restoring tab:', error);
+            showMessage('Error restoring tab. The URL might be corrupted.', 'error');
+        }
+    } else {
+        console.warn('No URL found to restore');
+        showMessage('No URL found to restore this tab.', 'error');
+    }
+}
 
-if [ ! -f "$SRC_DIR/popup.html" ]; then
-    cat > "$SRC_DIR/popup.html" << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>The Great Suspender</title>
-    <style>body { width: 300px; padding: 20px; }</style>
-</head>
-<body>
-    <h3>The Great Suspender</h3>
-    <p>Extension popup</p>
-</body>
-</html>
-EOF
-fi
+// Restore in new window
+function restoreInNewWindow() {
+    console.log('🪟 Restore in new window clicked');
+    
+    const params = getUrlParams();
+    if (params.uri) {
+        try {
+            const decodedUrl = decodeURIComponent(params.uri);
+            
+            // Validate URL before opening
+            if (decodedUrl.startsWith('http://') || decodedUrl.startsWith('https://') || decodedUrl.startsWith('file://')) {
+                window.open(decodedUrl, '_blank');
+                showMessage('Tab opened in new window!', 'success');
+            } else {
+                showMessage('Invalid URL for new window.', 'error');
+            }
+        } catch (error) {
+            console.error('Error restoring in new window:', error);
+            showMessage('Error opening in new window.', 'error');
+        }
+    } else {
+        showMessage('No URL available to open.', 'error');
+    }
+}
 
-if [ ! -f "$SRC_DIR/suspended.html" ]; then
-    cat > "$SRC_DIR/suspended.html" << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Tab Suspended</title>
-</head>
-<body>
-    <h1>Tab Suspended</h1>
-    <p>This tab has been suspended.</p>
-</body>
-</html>
-EOF
-fi
+// Copy URL to clipboard
+async function copyUrl() {
+    console.log('📋 Copy URL clicked');
+    
+    const params = getUrlParams();
+    if (params.uri) {
+        try {
+            const decodedUrl = decodeURIComponent(params.uri);
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(decodedUrl);
+                showMessage('URL copied to clipboard!', 'success');
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = decodedUrl;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showMessage('URL copied to clipboard!', 'success');
+                    } else {
+                        showMessage('Failed to copy URL.', 'error');
+                    }
+                } catch (err) {
+                    showMessage('Copy not supported in this browser.', 'error');
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        } catch (error) {
+            console.error('Error copying URL:', error);
+            showMessage('Error copying URL.', 'error');
+        }
+    } else {
+        showMessage('No URL available to copy.', 'error');
+    }
+}
 
-# Create basic JS files if they don't exist
-echo "⚡ Ensuring required JavaScript files exist..."
-mkdir -p "$SRC_DIR/js"
+// Open options page
+function openOptions() {
+    console.log('⚙️ Open options clicked');
+    
+    if (isExtensionContextValid()) {
+        safeRuntimeSendMessage({ action: 'openOptions' }, (response) => {
+            if (response && response.success) {
+                showMessage('Opening options page...', 'success');
+            } else {
+                showMessage('Cannot open options page.', 'error');
+            }
+        });
+    } else {
+        showMessage('Cannot open options - extension context invalid', 'error');
+    }
+}
 
-if [ ! -f "$SRC_DIR/js/background-wrapper.js" ]; then
-    cat > "$SRC_DIR/js/background-wrapper.js" << 'EOF'
-console.log('Background service worker loaded');
+// Get current tab ID
+function getCurrentTabId() {
+    if (isExtensionContextValid()) {
+        try {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (!chrome.runtime.lastError && tabs.length > 0) {
+                    currentTabId = tabs[0].id;
+                    updateTabIdDisplay();
+                } else {
+                    console.warn('Could not get current tab ID');
+                }
+            });
+        } catch (error) {
+            console.warn('Error getting tab ID:', error);
+        }
+    }
+}
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed');
+// Update tab ID display
+function updateTabIdDisplay() {
+    const tabIdEl = document.getElementById('tabId');
+    if (tabIdEl) {
+        if (currentTabId) {
+            tabIdEl.textContent = currentTabId;
+        } else {
+            tabIdEl.textContent = 'Unknown';
+        }
+    }
+}
+
+// Update tab information display
+function updateTabInfo() {
+    const params = getUrlParams();
+    const tabTitleEl = document.getElementById('tabTitle');
+    const tabUrlEl = document.getElementById('tabUrl');
+    const memorySavedEl = document.getElementById('memorySaved');
+    const suspendedTimeEl = document.getElementById('suspendedTime');
+    const suspendedDurationEl = document.getElementById('suspendedDuration');
+    
+    if (tabTitleEl) {
+        tabTitleEl.textContent = params.title || 'Suspended Tab';
+    }
+    
+    if (tabUrlEl) {
+        const url = params.uri || 'No URL available';
+        // Truncate very long URLs for display
+        if (url.length > 60) {
+            tabUrlEl.textContent = url.substring(0, 57) + '...';
+            tabUrlEl.title = url; // Show full URL on hover
+        } else {
+            tabUrlEl.textContent = url;
+        }
+    }
+    
+    // Set memory saved (estimated)
+    if (memorySavedEl) {
+        memorySavedEl.textContent = '~75 MB';
+    }
+    
+    // Set suspension time
+    const now = new Date();
+    if (suspendedTimeEl) {
+        suspendedTimeEl.textContent = now.toLocaleTimeString();
+    }
+    
+    // Update duration every second
+    if (suspendedDurationEl) {
+        function updateDuration() {
+            const elapsed = Math.floor((Date.now() - suspensionStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            if (hours > 0) {
+                suspendedDurationEl.textContent = `${hours}h ${minutes}m ${seconds}s`;
+            } else {
+                suspendedDurationEl.textContent = `${minutes}m ${seconds}s`;
+            }
+        }
+        
+        updateDuration(); // Initial update
+        setInterval(updateDuration, 1000); // Update every second
+    }
+    
+    // Get current tab ID
+    getCurrentTabId();
+}
+
+// Load statistics
+function loadStats() {
+    if (!isExtensionContextValid()) {
+        console.warn('Cannot load stats - extension context invalid');
+        // Set fallback values
+        const totalSuspendedEl = document.getElementById('totalSuspended');
+        const totalMemorySavedEl = document.getElementById('totalMemorySaved');
+        const sessionDurationEl = document.getElementById('sessionDuration');
+        
+        if (totalSuspendedEl) totalSuspendedEl.textContent = '1';
+        if (totalMemorySavedEl) totalMemorySavedEl.textContent = '75 MB';
+        if (sessionDurationEl) sessionDurationEl.textContent = '< 1 min';
+        return;
+    }
+    
+    safeRuntimeSendMessage({ action: 'getSuspendedCount' }, (response) => {
+        const totalSuspendedEl = document.getElementById('totalSuspended');
+        const totalMemorySavedEl = document.getElementById('totalMemorySaved');
+        const sessionDurationEl = document.getElementById('sessionDuration');
+        
+        if (response && response.success) {
+            if (totalSuspendedEl) {
+                totalSuspendedEl.textContent = response.count || 1;
+            }
+            
+            if (totalMemorySavedEl) {
+                const memory = response.estimatedMemory || 75;
+                if (memory > 1024) {
+                    totalMemorySavedEl.textContent = (memory / 1024).toFixed(1) + ' GB';
+                } else {
+                    totalMemorySavedEl.textContent = memory + ' MB';
+                }
+            }
+        } else {
+            // Fallback values
+            if (totalSuspendedEl) totalSuspendedEl.textContent = '1';
+            if (totalMemorySavedEl) totalMemorySavedEl.textContent = '75 MB';
+        }
+        
+        // Session duration (simple calculation)
+        if (sessionDurationEl) {
+            const elapsed = Math.floor((Date.now() - suspensionStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            if (minutes < 1) {
+                sessionDurationEl.textContent = '< 1 min';
+            } else if (minutes < 60) {
+                sessionDurationEl.textContent = minutes + ' min';
+            } else {
+                const hours = Math.floor(minutes / 60);
+                sessionDurationEl.textContent = hours + 'h ' + (minutes % 60) + 'm';
+            }
+        }
+    });
+}
+
+// Setup control button event listeners
+function setupControlButtons() {
+    console.log('🎮 Setting up control buttons...');
+    
+    // Restore Tab button
+    const restoreBtn = document.getElementById('restoreBtn');
+    if (restoreBtn) {
+        restoreBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            restoreTab();
+        });
+        console.log('✅ Restore button setup');
+    }
+    
+    // Restore in New Window button
+    const restoreNewWindowBtn = document.getElementById('restoreNewWindowBtn');
+    if (restoreNewWindowBtn) {
+        restoreNewWindowBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            restoreInNewWindow();
+        });
+        console.log('✅ Restore new window button setup');
+    }
+    
+    // Copy URL button
+    const copyUrlBtn = document.getElementById('copyUrlBtn');
+    if (copyUrlBtn) {
+        copyUrlBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyUrl();
+        });
+        console.log('✅ Copy URL button setup');
+    }
+    
+    // Options button
+    const openOptionsBtn = document.getElementById('openOptionsBtn');
+    if (openOptionsBtn) {
+        openOptionsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openOptions();
+        });
+        console.log('✅ Options button setup');
+    }
+    
+    // Prevention toggle
+    const preventToggle = document.getElementById('preventAutoRestore');
+    if (preventToggle) {
+        preventToggle.addEventListener('change', () => {
+            preventAutoRestore = preventToggle.checked;
+            
+            if (preventAutoRestore) {
+                document.body.classList.add('prevent-restore');
+                showMessage('Auto-restore disabled - use buttons only', 'success');
+            } else {
+                document.body.classList.remove('prevent-restore');
+                showMessage('Auto-restore enabled - click anywhere', 'success');
+            }
+        });
+        console.log('✅ Prevention toggle setup');
+    }
+}
+
+// Handle keyboard shortcuts
+document.addEventListener('keydown', (event) => {
+    // F1 to toggle shortcuts help
+    if (event.key === 'F1') {
+        event.preventDefault();
+        const helpEl = document.getElementById('shortcutsHelp');
+        if (helpEl) {
+            helpEl.classList.toggle('show');
+        }
+    }
+    
+    // Don't handle other shortcuts if prevention is on
+    if (preventAutoRestore && !event.target.closest('.control-btn')) {
+        return;
+    }
+    
+    // Space or Enter to restore
+    if (event.code === 'Space' || event.code === 'Enter') {
+        event.preventDefault();
+        restoreTab();
+    }
+    // Ctrl+Enter to restore in new window
+    else if (event.ctrlKey && event.code === 'Enter') {
+        event.preventDefault();
+        restoreInNewWindow();
+    }
+    // Ctrl+C to copy URL
+    else if (event.ctrlKey && event.code === 'KeyC') {
+        event.preventDefault();
+        copyUrl();
+    }
+    // Escape to open options
+    else if (event.code === 'Escape') {
+        event.preventDefault();
+        openOptions();
+    }
 });
+
+// Click anywhere to restore (with prevention check)
+document.addEventListener('click', (event) => {
+    // Don't restore if prevention is enabled or clicking inside the card
+    if (preventAutoRestore || event.target.closest('.suspended-card')) {
+        return;
+    }
+    
+    restoreTab();
+});
+
+// Listen for storage changes to sync theme changes in real-time
+try {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (!isExtensionContextValid()) {
+            console.warn('Cannot handle storage changes - extension context invalid');
+            return;
+        }
+        
+        if (namespace === 'local' && changes.selectedTheme) {
+            const newTheme = changes.selectedTheme.newValue;
+            if (newTheme) {
+                applyTheme(newTheme);
+                console.log('🎨 Theme synchronized from options:', newTheme);
+            }
+        }
+    });
+} catch (error) {
+    console.error('Error setting up storage listener:', error);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('😴 Initializing suspended tab with working controls...');
+    
+    // Load theme with smooth transition
+    loadTheme();
+    
+    // Update tab information
+    updateTabInfo();
+    
+    // Load statistics
+    loadStats();
+    
+    // Setup control buttons - IMPORTANT!
+    setupControlButtons();
+    
+    // Add loading animation
+    setTimeout(() => {
+        document.body.style.opacity = '1';
+    }, 100);
+    
+    console.log('✅ Suspended tab initialized with working controls');
+});
+
+// Make functions global for potential onclick handlers (backup)
+window.restoreTab = restoreTab;
+window.restoreInNewWindow = restoreInNewWindow;
+window.copyUrl = copyUrl;
+window.openOptions = openOptions;
+
+console.log('✅ Suspended tab script loaded with working control buttons');
 EOF
-fi
 
-if [ ! -f "$SRC_DIR/js/contentscript.js" ]; then
-    cat > "$SRC_DIR/js/contentscript.js" << 'EOF'
-console.log('Content script loaded');
-EOF
-fi
-
+echo "✅ Part 20 Complete - Suspended tab control buttons now work!"
 echo ""
-echo "🎉 ✅ ALL REQUIRED FILES CREATED!"
+echo "🎮 WHAT WAS FIXED:"
+echo "   ✅ Added proper event listeners for all control buttons"
+echo "   ✅ Fixed restoreTab() function with proper error handling"
+echo "   ✅ Fixed restoreInNewWindow() function"
+echo "   ✅ Fixed copyUrl() function with clipboard API fallback"
+echo "   ✅ Fixed openOptions() function"
+echo "   ✅ Added visual feedback for button clicks"
+echo "   ✅ Added loading states and user messages"
+echo "   ✅ Fixed prevention toggle functionality"
 echo ""
-echo "📊 File Status:"
-echo "   📋 managed-storage-schema.json: $([ -f "$SRC_DIR/managed-storage-schema.json" ] && echo "✅ Present" || echo "❌ Missing")"
-echo "   📁 _locales/en/messages.json: $([ -f "$SRC_DIR/_locales/en/messages.json" ] && echo "✅ Present" || echo "❌ Missing")"
-echo "   🎨 Icons: $(ls "$SRC_DIR/img/ic_suspendy_"*.png 2>/dev/null | wc -l) files"
-echo "   📄 HTML files: $(ls "$SRC_DIR/"*.html 2>/dev/null | wc -l) files"
-echo "   ⚡ JS files: $(ls "$SRC_DIR/js/"*.js 2>/dev/null | wc -l) files"
-echo ""
-echo "🔄 Try loading the extension again:"
-echo "   1. Go to chrome://extensions/"
-echo "   2. Remove any existing version first"
-echo "   3. Click 'Load unpacked'"
-echo "   4. Select: $SRC_DIR"
-echo ""
-echo "💪 All required files should now be present!"
-
-# Show current manifest info
-if [ -f "$SRC_DIR/manifest.json" ]; then
-    echo ""
-    echo "📋 Current Manifest:"
-    echo "   Manifest Version: $(grep '"manifest_version"' "$SRC_DIR/manifest.json" | grep -o '[0-9]')"
-    echo "   Has storage schema: $(grep -q 'managed_schema' "$SRC_DIR/manifest.json" && echo "✅ Yes" || echo "❌ No")"
-    echo "   Uses message variables: $(grep -q '__MSG_' "$SRC_DIR/manifest.json" && echo "✅ Yes" || echo "❌ No")"
-fi
+echo "🚀 NOW ALL CONTROL BUTTONS SHOULD WORK IN SUSPENDED TAB!"

@@ -1,14 +1,14 @@
 {
   "ext_extension_name": {
     "message": "The Great Suspender (NoTrack)",
-    "description": "Name of the extension"
+    "description": "Extension name"
   },
   "ext_extension_description": {
     "message": "Suspend tabs to save memory and CPU",
-    "description": "Description of the extension"
+    "description": "Extension description"
   },
   "ext_default_title": {
     "message": "The Great Suspender",
-    "description": "Default title for browser action"
+    "description": "Default title"
   }
 }
