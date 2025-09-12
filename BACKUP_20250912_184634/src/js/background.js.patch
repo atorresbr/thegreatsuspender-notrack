@@ -1,0 +1,44 @@
+function addCommandListeners() {
+  // Add defensive check for chrome.commands.onCommand
+  if (!chrome.commands || !chrome.commands.onCommand) {
+    gsUtils.warning('background', 'chrome.commands.onCommand not available in this browser version');
+    console.warn('chrome.commands.onCommand is not available. Keyboard shortcuts will not work.');
+    return;
+  }
+
+  chrome.commands.onCommand.addListener(async function(command) {
+    gsUtils.log('background', 'Command received: ' + command);
+    switch (command) {
+      case '1-suspend-tab':
+        toggleSuspendedStateOfActiveTab();
+        break;
+      case '2-toggle-temp-whitelist-tab':
+        toggleTempWhitelistStateOfActiveTab();
+        break;
+      case '2a-suspend-selected-tabs':
+        suspendSelectedTabs();
+        break;
+      case '2b-unsuspend-selected-tabs':
+        unsuspendSelectedTabs();
+        break;
+      case '3-suspend-active-window':
+        suspendAllTabs(false);
+        break;
+      case '3b-force-suspend-active-window':
+        forceTabSuspension();
+        break;
+      case '4-unsuspend-active-window':
+        unsuspendAllTabs();
+        break;
+      case '4b-soft-suspend-all-windows':
+        suspendAllTabsInAllWindows();
+        break;
+      case '5-suspend-all-windows':
+        forceTabSuspensionInAllWindows();
+        break;
+      case '6-unsuspend-all-windows':
+        unsuspendAllTabsInAllWindows();
+        break;
+    }
+  });
+}

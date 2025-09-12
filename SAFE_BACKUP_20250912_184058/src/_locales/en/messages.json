@@ -1,0 +1,58 @@
+{
+  "extName": {
+    "message": "The Great Suspender (NoTrack)",
+    "description": "The extension name"
+  },
+  "extDescription": {
+    "message": "Suspend tabs to save memory with beautiful themes",
+    "description": "The extension description"
+  },
+  "suspendTab": {
+    "message": "Suspend Tab",
+    "description": "Suspend tab action"
+  },
+  "unsuspendTab": {
+    "message": "Unsuspend Tab",
+    "description": "Unsuspend tab action"
+  },
+  "suspendOthers": {
+    "message": "Suspend Others",
+    "description": "Suspend other tabs action"
+  },
+  "unsuspendAll": {
+    "message": "Unsuspend All",
+    "description": "Unsuspend all tabs action"
+  },
+  "options": {
+    "message": "Options",
+    "description": "Options menu item"
+  },
+  "tabSuspended": {
+    "message": "Tab Suspended",
+    "description": "Tab suspended status"
+  },
+  "clickToRestore": {
+    "message": "Click to restore",
+    "description": "Restore instruction"
+  },
+  "theme": {
+    "message": "Theme",
+    "description": "Theme setting"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings section"
+  },
+  "statistics": {
+    "message": "Statistics",
+    "description": "Statistics section"
+  },
+  "sessionManagement": {
+    "message": "Session Management",
+    "description": "Session management section"
+  },
+  "about": {
+    "message": "About",
+    "description": "About section"
+  }
+}
