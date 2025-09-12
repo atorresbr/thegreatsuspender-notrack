@@ -1,134 +1,108 @@
 #!/bin/bash
-# filepath: /home/linux/Documents/GitHub/thegreatsuspender-notrack/ultra_minimal_fix.sh
+# filepath: /home/linux/Documents/GitHub/thegreatsuspender-notrack/fix.sh
 
 REPO_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack"
 SRC_DIR="$REPO_DIR/src"
 JS_DIR="$SRC_DIR/js"
+OPTIONS_FILE="$SRC_DIR/options.html"
+MANIFEST_FILE="$SRC_DIR/manifest.json"
 
-echo "🛡️ Creating ULTRA-MINIMAL content script (fewer than 50 lines total)..."
+EXPORT_BTN_HTML='<button id="exportTabsBtn" class="primary" style="margin-top:10px;">Export Tabs</button>'
 
-# Create a bare-bones content script
-cat > "$JS_DIR/contentscript.js" << 'EOF'
-// Ultra-minimal content script - no line 128 possible
-(() => {
-  // Just track activity timestamp
-  let lastActivity = Date.now();
-  
-  // Simple update function
-  function updateActivity() {
-    lastActivity = Date.now();
-  }
-  
-  // Basic activity tracking
-  ["mousedown", "mousemove", "keypress", "scroll", "touchstart"].forEach(evt => {
-    try { document.addEventListener(evt, updateActivity, {passive: true}); } catch(e) {}
-  });
-  
-  // Basic visibility tracking
-  try {
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) updateActivity();
-    });
-  } catch(e) {}
-  
-  // Simplest possible message handler
-  try {
-    chrome.runtime.onMessage.addListener((msg, sender, respond) => {
-      if (msg.action === "checkActivity") {
-        respond({lastActivity, url: location.href, title: document.title});
-      }
-      return true;
-    });
-  } catch(e) {}
-  
-  // That's it - no complex initialization, no catch blocks that could cause problems
-})();
-EOF
+echo "🔧 Fixing Export Tabs function..."
 
-# Update manifest to use both the ultra-minimal script and a background script
-cat > "$SRC_DIR/manifest.json" << 'EOF'
-{
-  "manifest_version": 3,
-  "name": "The Great Suspender (NoTrack)",
-  "version": "1.0.0",
-  "description": "Suspend tabs to save memory with beautiful themes",
-  "default_locale": "en",
-  
-  "permissions": [
-    "tabs",
-    "storage",
-    "contextMenus",
-    "activeTab"
-  ],
-  
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  
-  "background": {
-    "service_worker": "js/background-wrapper.js",
-    "type": "module"
-  },
-  
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["js/contentscript.js"],
-      "run_at": "document_idle"
+# Check if options.html exists
+if [ -f "$OPTIONS_FILE" ]; then
+  # Insert the button after the Session Management <h2> header
+  awk -v btn="$EXPORT_BTN_HTML" '
+    BEGIN {inserted=0}
+    /<h2[^>]*>Session Management<\/h2>/ && !inserted {
+      print $0
+      print btn
+      inserted=1
+      next
     }
-  ],
-  
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "The Great Suspender",
-    "default_icon": {
-      "16": "img/ic_suspendy_16x16.png",
-      "32": "img/ic_suspendy_32x32.png",
-      "48": "img/ic_suspendy_48x48.png",
-      "128": "img/ic_suspendy_128x128.png"
-    }
-  },
-  
-  "options_page": "options.html",
-  
-  "icons": {
-    "16": "img/ic_suspendy_16x16.png",
-    "32": "img/ic_suspendy_32x32.png",
-    "48": "img/ic_suspendy_48x48.png",
-    "128": "img/ic_suspendy_128x128.png"
-  },
-  
-  "web_accessible_resources": [
-    {
-      "resources": ["suspended.html", "css/*.css", "js/*.js", "img/*.png"],
-      "matches": ["<all_urls>"]
-    }
-  ]
-}
-EOF
-
-# Create basic _locales structure if it doesn't exist
-mkdir -p "$SRC_DIR/_locales/en"
-if [ ! -f "$SRC_DIR/_locales/en/messages.json" ]; then
-  echo "Creating basic localization file..."
-  cat > "$SRC_DIR/_locales/en/messages.json" << 'EOF'
-{
-  "extName": {
-    "message": "The Great Suspender (NoTrack)"
-  },
-  "extDescription": {
-    "message": "Suspend tabs to save memory with beautiful themes"
-  }
-}
-EOF
+    {print}
+  ' "$OPTIONS_FILE" > "${OPTIONS_FILE}.tmp" && mv "${OPTIONS_FILE}.tmp" "$OPTIONS_FILE"
+  echo "✅ Export Tabs button inserted after Session Management header."
+else
+  echo "❌ options.html not found. Please ensure the file exists."
+  exit 1
 fi
 
-echo "✅ Created ultra-minimal content script (only 31 lines)"
-echo "✅ Updated manifest.json with proper configuration"
-echo "✅ Ensured _locales structure exists"
-echo ""
-echo "🔄 Now COMPLETELY UNINSTALL your extension from Chrome"
-echo "🔄 Then load it again as unpacked extension"
-echo ""
-echo "📊 This approach guarantees no line 128 error since the file is only 31 lines"
-echo ""
+# Add JS reference if missing
+if ! grep -q "exportTabs.js" "$OPTIONS_FILE"; then
+  sed -i 's|</body>|    <script src="js/exportTabs.js"></script>\n</body>|' "$OPTIONS_FILE"
+  echo "✅ Added exportTabs.js reference to options.html"
+else
+  echo "✅ exportTabs.js already referenced in options.html"
+fi
+
+# Create/replace exportTabs.js
+cat > "$JS_DIR/exportTabs.js" << 'EOF'
+document.addEventListener("DOMContentLoaded", function() {
+  const exportBtn = document.getElementById("exportTabsBtn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", function() {
+      chrome.runtime.sendMessage({action: "exportTabs"}, function(response) {
+        if (response && response.tabs) {
+          const data = response.tabs.map(tab => `${tab.title}\t${tab.url}`).join("\n");
+          const blob = new Blob([data], {type: "text/plain"});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "tabs_export.txt";
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 100);
+        } else {
+          alert("Could not export tabs.");
+        }
+      });
+    });
+  }
+});
+EOF
+
+# Create/replace background-wrapper.js
+cat > "$JS_DIR/background-wrapper.js" << 'EOF'
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === "exportTabs") {
+    chrome.tabs.query({}, tabs => {
+      const exportTabs = tabs.filter(tab =>
+        tab.url &&
+        !tab.url.startsWith("chrome://") &&
+        !tab.url.startsWith("chrome-extension://")
+      ).map(tab => ({
+        title: tab.title,
+        url: tab.url
+      }));
+      sendResponse({tabs: exportTabs}); // Send the filtered tabs as a response
+    });
+    return true; // Keep the message channel open for async sendResponse
+  } else {
+    // If the action is not recognized, send an empty response
+    console.warn(`Unrecognized action: ${msg.action}`);
+    sendResponse({});
+    return true; // Keep the message channel open
+  }
+});
+EOF
+
+# Check and update manifest.json
+if [ -f "$MANIFEST_FILE" ]; then
+  if ! grep -q '"tabs"' "$MANIFEST_FILE"; then
+    sed -i '/"permissions": \[/a \    "tabs",' "$MANIFEST_FILE"
+    echo "✅ Added 'tabs' permission to manifest.json"
+  else
+    echo "✅ 'tabs' permission already exists in manifest.json"
+  fi
+else
+  echo "❌ manifest.json not found. Please ensure the file exists."
+  exit 1
+fi
+
+echo "✅ Export Tabs function fixed!"
