@@ -1,50 +1,43 @@
 {
-  "name": "__MSG_ext_extension_name__",
-  "description": "__MSG_ext_extension_description__",
-  "version": "7.1.10",
-  "default_locale": "en",
   "manifest_version": 3,
-  "minimum_chrome_version": "88",
+  "name": "The Great Suspender (NoTrack)",
+  "version": "1.0.0",
+  "description": "Suspend tabs to save memory with beautiful themes",
+  "default_locale": "en",
   
   "permissions": [
     "tabs",
     "storage",
-    "history",
-    "unlimitedStorage",
     "contextMenus",
-    "cookies",
-    "alarms",
-    "scripting"
+    "activeTab"
   ],
   
   "host_permissions": [
-    "http://*/*",
-    "https://*/*",
-    "file://*/*"
+    "<all_urls>"
   ],
   
-  "storage": {
-    "managed_schema": "managed-storage-schema.json"
-  },
-  
   "background": {
-    "service_worker": "js/background-wrapper.js"
+    "service_worker": "js/background-wrapper.js",
+    "type": "module"
   },
   
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*", "file://*/*"],
-      "js": ["js/contentscript.js"]
+      "matches": ["<all_urls>"],
+      "js": ["js/contentscript.js"],
+      "run_at": "document_idle"
     }
   ],
   
   "action": {
-    "default_title": "__MSG_ext_default_title__",
+    "default_popup": "popup.html",
+    "default_title": "The Great Suspender",
     "default_icon": {
       "16": "img/ic_suspendy_16x16.png",
-      "32": "img/ic_suspendy_32x32.png"
-    },
-    "default_popup": "popup.html"
+      "32": "img/ic_suspendy_32x32.png",
+      "48": "img/ic_suspendy_48x48.png",
+      "128": "img/ic_suspendy_128x128.png"
+    }
   },
   
   "options_page": "options.html",
@@ -56,16 +49,10 @@
     "128": "img/ic_suspendy_128x128.png"
   },
   
-  "web_accessible_resources": [{
-    "resources": [
-      "suspended.html",
-      "options.html",
-      "popup.html",
-      "css/*",
-      "img/*",
-      "js/*",
-      "font/*"
-    ],
-    "matches": ["<all_urls>"]
-  }]
+  "web_accessible_resources": [
+    {
+      "resources": ["suspended.html", "css/*.css", "js/*.js", "img/*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

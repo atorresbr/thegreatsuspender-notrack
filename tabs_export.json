@@ -1,20 +1,28 @@
 {
   "tabs": [
     {
+      "title": "Budgets",
+      "url": "https://github.com/settings/billing/budgets"
+    },
+    {
       "title": "atorresbr/thegreatsuspender-notrack: A chrome extension for suspending all tabs to free up memory, privacy-oriented with no analytics tracking.",
       "url": "https://github.com/atorresbr/thegreatsuspender-notrack"
     },
     {
-      "title": "Billing Usage",
-      "url": "https://github.com/settings/billing/usage?period=3&group=0&customer=39911629"
-    },
-    {
       "title": "Google Tradutor",
-      "url": "https://translate.google.com.br/?sl=en&tl=pt&text=when%20im%20exporta%20tabs%2C%20i%20get%20the%20error%2C%20failled%20to%20export%20tabs%2C%20but%20tabs%20is%20exported%2C%20BUT%2C%20when%20i%20try%20import%2C%20the%20import%20doesnt%20work%20propelly%2C%20check%20why&op=translate"
+      "url": "https://translate.google.com.br/?sl=en&tl=pt&text=Nothing%2C%20%E2%9D%8C%20Failed%20to%20export%20tabs%0A%0Ahow%20you%20can%20analise%20to%20hunt%20this%20error%2C%20i%20open%20all%20js%20files%20handles%20managmente%20session%2C%20or%20you%20prefer%20my%20link%20repository%20src%2Fjs%20%3F%0A%0Ai%20will%20loose%20my%20premium%20requests%20with%20you%20shallow%20fixes&op=translate"
     },
     {
-      "title": "Facebook",
-      "url": "https://www.facebook.com/"
+      "title": "YouTube",
+      "url": "https://www.youtube.com/"
+    },
+    {
+      "title": "Some NES Games Have Converters Inside #nintendo #nes #hardware #retrotech #retrogaming - YouTube",
+      "url": "https://www.youtube.com/shorts/Pe1wioM2SSc"
+    },
+    {
+      "title": "Mariage d'amour - Paul de Senneville (Relaxing Piano Music) - YouTube",
+      "url": "https://www.youtube.com/watch?v=uShkw72Hphs&list=RDuShkw72Hphs&start_radio=1&ab_channel=YannickLowack"
     }
   ]
 }
