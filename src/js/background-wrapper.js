@@ -1,5 +1,5 @@
 /**
- * COMPLETE SESSION MANAGEMENT WITH TAB PROTECTION
+ * COMPLETE SESSION MANAGEMENT WITH FIXED BACKUP FUNCTIONALITY
  */
 
 console.log('🚀 Complete Session Management Service Worker starting...');
@@ -9,9 +9,9 @@ let isServiceWorkerReady = false;
 let suspendedTabs = new Map();
 let currentSessionId = null;
 let contextMenusCreated = false;
-let originalTabs = new Map(); // Store original tabs for protection
+let originalTabs = new Map();
 
-// Initialize service worker with complete functionality
+// Initialize service worker
 async function initializeServiceWorker() {
     try {
         console.log('🔧 Initializing Complete Session Management...');
@@ -25,7 +25,6 @@ async function initializeServiceWorker() {
             suspendAfter: 60
         };
         
-        // Initialize defaults
         for (const [key, value] of Object.entries(defaults)) {
             try {
                 const result = await chrome.storage.local.get([key]);
@@ -37,7 +36,6 @@ async function initializeServiceWorker() {
             }
         }
         
-        // Get or create session ID
         const sessionResult = await chrome.storage.local.get(['currentSessionId']);
         if (!sessionResult.currentSessionId) {
             currentSessionId = `gs-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -48,20 +46,16 @@ async function initializeServiceWorker() {
             console.log('✅ Using existing session ID:', currentSessionId);
         }
         
-        // Store all current tabs for protection
         await storeCurrentTabsForProtection();
         
-        // Auto-restore suspended tabs if enabled
         const settings = await chrome.storage.local.get(['autoRestore', 'tabProtection']);
         if (settings.autoRestore) {
             await autoRestoreSuspendedTabs();
         }
         
-        // Apply session ID to all tabs
         await applySessionIdToAllTabs();
         
-        // Setup context menu
-        if (!contextMenusCreated) {
+        if (!contextMenusCreated && chrome.contextMenus) {
             await setupContextMenu();
         }
         
@@ -74,7 +68,6 @@ async function initializeServiceWorker() {
     }
 }
 
-// Store current tabs for protection against extension reload
 async function storeCurrentTabsForProtection() {
     try {
         const tabs = await chrome.tabs.query({});
@@ -91,7 +84,6 @@ async function storeCurrentTabsForProtection() {
                     protected: true
                 });
                 
-                // Store in memory map
                 originalTabs.set(tab.id, {
                     url: tab.url,
                     title: tab.title,
@@ -112,7 +104,6 @@ async function storeCurrentTabsForProtection() {
     }
 }
 
-// Auto-restore suspended tabs after browser restart
 async function autoRestoreSuspendedTabs() {
     try {
         const result = await chrome.storage.local.get(['protectedTabs', `session_${currentSessionId}_protected`]);
@@ -121,7 +112,6 @@ async function autoRestoreSuspendedTabs() {
         if (tabsToRestore.length > 0) {
             console.log(`🔄 Auto-restoring ${tabsToRestore.length} protected tabs...`);
             
-            // Only restore if current tabs are minimal (like new tab page)
             const currentTabs = await chrome.tabs.query({});
             const nonSystemTabs = currentTabs.filter(canManageTab);
             
@@ -130,7 +120,6 @@ async function autoRestoreSuspendedTabs() {
                     if (tab.url && canManageTab(tab)) {
                         await chrome.tabs.create({ 
                             url: tab.url, 
-                            title: tab.title,
                             active: false 
                         });
                     }
@@ -143,7 +132,6 @@ async function autoRestoreSuspendedTabs() {
     }
 }
 
-// Apply session ID to all current tabs
 async function applySessionIdToAllTabs() {
     try {
         const tabs = await chrome.tabs.query({});
@@ -173,7 +161,7 @@ async function applySessionIdToAllTabs() {
     }
 }
 
-// UNIFIED MESSAGE HANDLER
+// UNIFIED MESSAGE HANDLER with FIXED backup functions
 function handleMessage(request, sender, sendResponse) {
     console.log('📨 Background received:', request.action);
     
@@ -191,6 +179,94 @@ function handleMessage(request, sender, sendResponse) {
             });
             return true;
             
+        // FIXED: backupAllTabs - works with ALL tabs (not just suspended)
+        case 'backupAllTabs':
+            chrome.tabs.query({}, (tabs) => {
+                // Get ALL manageable tabs (both regular and suspended)
+                const allTabs = tabs.filter(canManageTab).map((tab) => ({
+                    id: tab.id,
+                    title: tab.title,
+                    url: tab.url,
+                    sessionId: currentSessionId,
+                    timestamp: Date.now(),
+                    suspended: tab.url.includes('suspended.html')
+                }));
+                
+                console.log(`🔄 Backing up ${allTabs.length} tabs (${allTabs.filter(t => t.suspended).length} suspended, ${allTabs.filter(t => !t.suspended).length} regular)`);
+                
+                // Generate backup name if not provided
+                let backupName = request.backupName;
+                if (!backupName || backupName.trim() === '') {
+                    const now = new Date();
+                    backupName = `backup_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+                }
+                
+                const backupData = {
+                    name: backupName,
+                    sessionId: currentSessionId,
+                    tabs: allTabs,
+                    created: Date.now(),
+                    count: allTabs.length,
+                    suspendedCount: allTabs.filter(t => t.suspended).length,
+                    regularCount: allTabs.filter(t => !t.suspended).length
+                };
+                
+                // Store backup
+                chrome.storage.local.set({ 
+                    [`session_${currentSessionId}`]: allTabs,
+                    [`backup_${backupName}`]: backupData,
+                    currentSessionTabs: allTabs,
+                    protectedTabs: allTabs
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error('❌ Error storing backup:', chrome.runtime.lastError);
+                        sendResponse({
+                            success: false, 
+                            error: chrome.runtime.lastError.message
+                        });
+                    } else {
+                        console.log(`✅ Backed up ${allTabs.length} tabs as "${backupName}" with session ID: ${currentSessionId}`);
+                        sendResponse({
+                            success: true, 
+                            count: allTabs.length, 
+                            sessionId: currentSessionId,
+                            backupName: backupName,
+                            suspendedCount: backupData.suspendedCount,
+                            regularCount: backupData.regularCount
+                        });
+                    }
+                });
+            });
+            return true;
+            
+        // FIXED: deleteBackup function
+        case 'deleteBackup':
+            const backupName = request.backupName;
+            if (!backupName) {
+                sendResponse({success: false, error: 'Backup name required'});
+                return true;
+            }
+            
+            console.log(`🗑️ Deleting backup: ${backupName}`);
+            
+            chrome.storage.local.remove([`backup_${backupName}`], () => {
+                if (chrome.runtime.lastError) {
+                    console.error('❌ Error deleting backup:', chrome.runtime.lastError);
+                    sendResponse({
+                        success: false, 
+                        error: chrome.runtime.lastError.message
+                    });
+                } else {
+                    console.log(`✅ Backup "${backupName}" deleted successfully`);
+                    sendResponse({
+                        success: true,
+                        message: `Backup "${backupName}" deleted`
+                    });
+                }
+            });
+            return true;
+            
+        // Original backupTabs (keep for compatibility)
         case 'backupTabs':
             chrome.tabs.query({}, (tabs) => {
                 const backupTabs = tabs.filter(canManageTab).map((tab) => ({
@@ -201,7 +277,6 @@ function handleMessage(request, sender, sendResponse) {
                     timestamp: Date.now()
                 }));
                 
-                // Use provided backup name or generate default
                 let backupName = request.backupName;
                 if (!backupName || backupName.trim() === '') {
                     const now = new Date();
@@ -236,7 +311,6 @@ function handleMessage(request, sender, sendResponse) {
         case 'createNewSession':
             chrome.tabs.query({}, async (tabs) => {
                 try {
-                    // First backup current session
                     const currentTabs = tabs.filter(canManageTab).map((tab) => ({
                         id: tab.id,
                         title: tab.title,
@@ -245,7 +319,6 @@ function handleMessage(request, sender, sendResponse) {
                         timestamp: Date.now()
                     }));
                     
-                    // Save current session
                     if (currentTabs.length > 0) {
                         await chrome.storage.local.set({ 
                             [`session_${currentSessionId}`]: currentTabs,
@@ -258,10 +331,8 @@ function handleMessage(request, sender, sendResponse) {
                         });
                     }
                     
-                    // Create new session ID
                     const newSessionId = `gs-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
                     
-                    // Suspend ALL manageable tabs with new session ID
                     let suspendedCount = 0;
                     const suspendPromises = tabs.map(async (tab) => {
                         if (canManageTab(tab)) {
@@ -275,7 +346,6 @@ function handleMessage(request, sender, sendResponse) {
                                 await chrome.tabs.update(tab.id, { url: suspendedUrl });
                                 suspendedCount++;
                                 
-                                // Store suspended tab info
                                 suspendedTabs.set(tab.id, {
                                     id: tab.id,
                                     url: tab.url,
@@ -292,11 +362,9 @@ function handleMessage(request, sender, sendResponse) {
                     
                     await Promise.all(suspendPromises);
                     
-                    // Update current session ID
                     await chrome.storage.local.set({ currentSessionId: newSessionId });
                     currentSessionId = newSessionId;
                     
-                    // Apply new session to all tabs
                     await applySessionIdToAllTabs();
                     await storeCurrentTabsForProtection();
                     
@@ -327,7 +395,6 @@ function handleMessage(request, sender, sendResponse) {
                 let sessionTabs = result[`session_${sessionId}`] || result[sessionId] || [];
                 
                 if (sessionTabs.length === 0) {
-                    // Try to find backup with this session ID
                     chrome.storage.local.get(null, (allData) => {
                         const backupKey = Object.keys(allData).find(key => 
                             key.startsWith('backup_') && allData[key].sessionId === sessionId
@@ -340,7 +407,7 @@ function handleMessage(request, sender, sendResponse) {
                         if (sessionTabs.length > 0) {
                             sessionTabs.forEach((tab) => {
                                 if (tab.url && canManageTab(tab)) {
-                                    chrome.tabs.create({url: tab.url, title: tab.title});
+                                    chrome.tabs.create({url: tab.url, active: false});
                                 }
                             });
                             sendResponse({success: true, restored: sessionTabs.length, sessionId: sessionId});
@@ -351,7 +418,7 @@ function handleMessage(request, sender, sendResponse) {
                 } else {
                     sessionTabs.forEach((tab) => {
                         if (tab.url && canManageTab(tab)) {
-                            chrome.tabs.create({url: tab.url, title: tab.title});
+                            chrome.tabs.create({url: tab.url, active: false});
                         }
                     });
                     sendResponse({success: true, restored: sessionTabs.length, sessionId: sessionId});
@@ -377,7 +444,7 @@ function handleMessage(request, sender, sendResponse) {
                 }
                 tabsArray.forEach((tab) => {
                     if (tab.url && canManageTab(tab)) {
-                        chrome.tabs.create({url: tab.url});
+                        chrome.tabs.create({url: tab.url, active: false});
                     }
                 });
                 sendResponse({success: true, imported: tabsArray.length});
@@ -585,47 +652,57 @@ async function getTabInfo(tabId) {
 }
 
 // Context menu setup
+// Context menu setup with duplicate prevention
 async function setupContextMenu() {
     return new Promise((resolve) => {
+        // Always remove all existing context menus first
         chrome.contextMenus.removeAll(() => {
+            if (chrome.runtime.lastError) {
+                console.warn("Context menu removeAll warning:", chrome.runtime.lastError.message);
+            }
+            
             const menuItems = [
-                { id: 'suspend-tab', title: '💤 Suspend this tab', contexts: ['page'] },
-                { id: 'suspend-other', title: '😴 Suspend other tabs', contexts: ['page'] },
-                { id: 'unsuspend-all', title: '🔄 Unsuspend all tabs', contexts: ['page'] }
+                { id: "suspend-tab", title: "💤 Suspend this tab", contexts: ["page"] },
+                { id: "suspend-other", title: "😴 Suspend other tabs", contexts: ["page"] },
+                { id: "unsuspend-all", title: "🔄 Unsuspend all tabs", contexts: ["page"] }
             ];
             
             let itemsCreated = 0;
             const totalItems = menuItems.length;
             
-            menuItems.forEach((item) => {
-                chrome.contextMenus.create(item, () => {
-                    if (chrome.runtime.lastError) {
-                        console.warn(`Context menu creation error for ${item.id}:`, chrome.runtime.lastError.message);
-                    }
-                    
-                    itemsCreated++;
-                    if (itemsCreated === totalItems) {
-                        contextMenusCreated = true;
-                        resolve();
-                    }
+            // Add small delay to ensure removeAll completes
+            setTimeout(() => {
+                menuItems.forEach((item) => {
+                    chrome.contextMenus.create(item, () => {
+                        if (chrome.runtime.lastError) {
+                            console.warn(`Context menu creation error for ${item.id}:`, chrome.runtime.lastError.message);
+                        } else {
+                            console.log(`✅ Created context menu: ${item.id}`);
+                        }
+                        
+                        itemsCreated++;
+                        if (itemsCreated === totalItems) {
+                            contextMenusCreated = true;
+                            console.log("✅ All context menus created successfully");
+                            resolve();
+                        }
+                    });
                 });
-            });
+            }, 100); // 100ms delay
         });
     });
 }
 
-// TAB PROTECTION - Prevent tabs from closing on extension reload
+// Tab protection
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     try {
         const settings = await chrome.storage.local.get(['tabProtection']);
         if (settings.tabProtection) {
-            // If we had this tab stored, keep it protected
             if (originalTabs.has(tabId)) {
                 const tabInfo = originalTabs.get(tabId);
                 const protectedTabs = await chrome.storage.local.get(['protectedTabs']);
                 let tabs = protectedTabs.protectedTabs || [];
                 
-                // Add this tab to protected list if not already there
                 if (!tabs.find(t => t.id === tabId)) {
                     tabs.push({
                         id: tabId,
@@ -646,23 +723,27 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     }
 });
 
-// Update session when tabs change
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && canManageTab(tab)) {
-        // Store this tab for protection
         originalTabs.set(tabId, {
             url: tab.url,
             title: tab.title,
             sessionId: currentSessionId
         });
         
-        // Update session periodically
         await applySessionIdToAllTabs();
         await storeCurrentTabsForProtection();
     }
 });
 
 // Event listeners
+// Cleanup context menus on startup
+if (typeof chrome !== "undefined" && chrome.contextMenus) {
+    chrome.contextMenus.removeAll(() => {
+        contextMenusCreated = false;
+        console.log("🧹 Cleaned up existing context menus");
+    });
+}
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('🔧 Extension installed:', details.reason);
     initializeServiceWorker();
@@ -693,5 +774,4 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
-// Initialize immediately
 initializeServiceWorker();
