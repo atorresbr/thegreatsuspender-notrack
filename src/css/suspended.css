@@ -181,7 +181,7 @@ h1 {
 
 .info-value.tab-id {
     font-family: 'Monaco', 'Menlo', monospace;
-    color: #ff6b95;
+    color: #eac300;
     font-weight: bold;
 }
 
@@ -189,6 +189,10 @@ h1 {
     color: #00ff88;
     font-weight: bold;
     font-size: 16px;
+}
+ .session-id {
+    color: #00ff0a !important;
+    font-weight: 600;
 }
 
 /* CONTROLS SECTION */

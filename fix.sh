@@ -4,29 +4,186 @@
 REPO_DIR="/home/linux/Documents/GitHub/thegreatsuspender-notrack"
 SRC_DIR="$REPO_DIR/src"
 JS_DIR="$SRC_DIR/js"
+SUSPENDED_JS="$JS_DIR/suspended.js"
+SUSPENDED_HTML="$SRC_DIR/suspended.html"
+POPUP_JS="$JS_DIR/popup.js"
+OPTIONS_HTML="$SRC_DIR/options.html"
 EXPORT_JS="$JS_DIR/exportTabs.js"
+BG_JS="$JS_DIR/background-wrapper.js"
 
-echo "🔧 Fixing backup buttons in exportTabs.js..."
+echo "🔧 Fixing ALL issues: duplicates, closing tabs, delete buttons, context menu..."
 
-# Create the fixed exportTabs.js with working backup buttons
-cat > "$EXPORT_JS" << 'EOF'
-console.log('✅ ExportTabs.js with complete session management loaded');
+# 1. Fix CSP errors in options.html - remove ALL inline event handlers
+echo "🛡️ Fixing CSP violations in options.html..."
+sed -i 's/onmouseover="[^"]*"//g' "$OPTIONS_HTML"
+sed -i 's/onmouseout="[^"]*"//g' "$OPTIONS_HTML" 
+sed -i 's/onclick="[^"]*"//g' "$OPTIONS_HTML"
+sed -i 's/onchange="[^"]*"//g' "$OPTIONS_HTML"
+sed -i 's/oninput="[^"]*"//g' "$OPTIONS_HTML"
+echo "✅ Removed inline event handlers from options.html"
+
+# 2. Fix context menu duplicate error in background-wrapper.js
+echo "🛡️ Fixing context menu duplicate creation..."
+# Replace the entire setupContextMenu function to prevent duplicates
+sed -i '/^async function setupContextMenu/,/^}$/c\
+async function setupContextMenu() {\
+    return new Promise((resolve) => {\
+        chrome.contextMenus.removeAll(() => {\
+            if (chrome.runtime.lastError) {\
+                console.warn("Context menu removeAll warning:", chrome.runtime.lastError.message);\
+            }\
+            \
+            setTimeout(() => {\
+                const menuItems = [\
+                    { id: "suspend-tab", title: "💤 Suspend this tab", contexts: ["page"] },\
+                    { id: "suspend-other", title: "😴 Suspend other tabs", contexts: ["page"] },\
+                    { id: "unsuspend-all", title: "🔄 Unsuspend all tabs", contexts: ["page"] }\
+                ];\
+                \
+                let itemsCreated = 0;\
+                const totalItems = menuItems.length;\
+                \
+                menuItems.forEach((item) => {\
+                    chrome.contextMenus.create(item, () => {\
+                        if (chrome.runtime.lastError) {\
+                            console.warn(`Context menu creation error for ${item.id}:`, chrome.runtime.lastError.message);\
+                        } else {\
+                            console.log(`✅ Created context menu: ${item.id}`);\
+                        }\
+                        \
+                        itemsCreated++;\
+                        if (itemsCreated === totalItems) {\
+                            contextMenusCreated = true;\
+                            console.log("✅ All context menus created successfully");\
+                            resolve();\
+                        }\
+                    });\
+                });\
+            }, 150);\
+        });\
+    });\
+}' "$BG_JS"
+
+# 3. Fix createNewSession to NOT close suspended tabs and prevent duplicates
+echo "🔧 Fixing createNewSession to keep suspended tabs..."
+sed -i '/case '\''createNewSession'\''/,/return true;/{
+    /case '\''createNewSession'\''/,/return true;/c\
+        case '\''createNewSession'\'':\
+            chrome.tabs.query({}, async (tabs) => {\
+                try {\
+                    console.log("🔄 Creating new session without closing suspended tabs...");\
+                    \
+                    const currentTabs = tabs.filter(canManageTab).map((tab) => ({\
+                        id: tab.id,\
+                        title: tab.title,\
+                        url: tab.url,\
+                        sessionId: currentSessionId,\
+                        timestamp: Date.now(),\
+                        suspended: tab.url.includes("suspended.html")\
+                    }));\
+                    \
+                    if (currentTabs.length > 0) {\
+                        const backupName = `Session_${new Date().toISOString().slice(0,19).replace(/:/g,"-")}`;\
+                        await chrome.storage.local.set({ \
+                            [`session_${currentSessionId}`]: currentTabs,\
+                            [`backup_${backupName}`]: {\
+                                name: backupName,\
+                                sessionId: currentSessionId,\
+                                tabs: currentTabs,\
+                                created: Date.now(),\
+                                count: currentTabs.length,\
+                                regularCount: currentTabs.filter(t => !t.suspended).length,\
+                                suspendedCount: currentTabs.filter(t => t.suspended).length\
+                            }\
+                        });\
+                        console.log(`✅ Saved current session as backup: ${backupName}`);\
+                    }\
+                    \
+                    const newSessionId = `gs-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;\
+                    \
+                    let suspendedCount = 0;\
+                    const suspendPromises = tabs.map(async (tab) => {\
+                        if (canManageTab(tab) && !tab.url.includes("suspended.html")) {\
+                            try {\
+                                const suspendedUrl = chrome.runtime.getURL("suspended.html") + \
+                                    "?uri=" + encodeURIComponent(tab.url) + \
+                                    "&title=" + encodeURIComponent(tab.title) +\
+                                    "&sessionId=" + encodeURIComponent(newSessionId) +\
+                                    "&tabId=" + encodeURIComponent(tab.id);\
+                                \
+                                await chrome.tabs.update(tab.id, { url: suspendedUrl });\
+                                suspendedCount++;\
+                                \
+                                suspendedTabs.set(tab.id, {\
+                                    id: tab.id,\
+                                    url: tab.url,\
+                                    title: tab.title,\
+                                    sessionId: newSessionId,\
+                                    suspended: Date.now()\
+                                });\
+                                \
+                            } catch (error) {\
+                                console.error("Error suspending tab:", error);\
+                            }\
+                        }\
+                    });\
+                    \
+                    await Promise.all(suspendPromises);\
+                    \
+                    await chrome.storage.local.set({ currentSessionId: newSessionId });\
+                    currentSessionId = newSessionId;\
+                    \
+                    await applySessionIdToAllTabs();\
+                    await storeCurrentTabsForProtection();\
+                    \
+                    console.log(`✅ Created new session ${newSessionId}, suspended ${suspendedCount} new tabs`);\
+                    \
+                    sendResponse({\
+                        success: true,\
+                        sessionId: newSessionId,\
+                        suspended: suspendedCount,\
+                        previousCount: currentTabs.length\
+                    });\
+                    \
+                } catch (error) {\
+                    console.error("❌ Error creating new session:", error);\
+                    sendResponse({\
+                        success: false,\
+                        error: error.message\
+                    });\
+                }\
+            });\
+            return true;
+}' "$BG_JS"
+
+# 4. Fix backupAllTabs to add proper counts
+echo "🔧 Fixing backupAllTabs counts..."
+sed -i '/case '\''backupAllTabs'\''/,/return true;/{
+    /suspendedCount: allTabs.filter(t => t.suspended).length,/d
+    /regularCount: allTabs.filter(t => !t.suspended).length,/d
+    /count: allTabs.length,/a\
+                    regularCount: allTabs.filter(t => !t.suspended).length,\
+                    suspendedCount: allTabs.filter(t => t.suspended).length,
+}' "$BG_JS"
+
+# 5. Fix exportTabs.js with working delete buttons and no duplicates
+cat > "$EXPORT_JS" << 'JSEOF'
+console.log('✅ ExportTabs.js with FIXED session management loaded');
 
 document.addEventListener("DOMContentLoaded", function() {
-    console.log('✅ DOM loaded, setting up complete session management...');
+    console.log('✅ DOM loaded, setting up FIXED session management...');
+    
+    // Global state management
+    let isCreatingSession = false;
+    let isCreatingBackup = false;
     
     // Export All Tabs
     const exportBtn = document.getElementById("exportAllTabs");
     if (exportBtn) {
         exportBtn.addEventListener("click", function(e) {
             e.preventDefault();
-            console.log('🔄 Export button clicked');
-            
             chrome.runtime.sendMessage({action: "exportTabs"}, function(response) {
-                console.log('📥 Export response:', response);
-                
                 if (chrome.runtime.lastError) {
-                    console.error('❌ Runtime error:', chrome.runtime.lastError);
                     alert("Error: " + chrome.runtime.lastError.message);
                     return;
                 }
@@ -54,29 +211,31 @@ document.addEventListener("DOMContentLoaded", function() {
                     
                     alert(`✅ Exported ${response.tabs.length} tabs with session ID: ${response.sessionId}`);
                 } else {
-                    console.error('❌ Invalid response:', response);
                     alert("❌ Failed to export tabs");
                 }
             });
         });
     }
     
-    // Backup All Tabs
+    // FIXED: Backup All Tabs - prevent duplicates
     const backupBtn = document.getElementById("backupAllTabs");
     const backupNameInput = document.getElementById("allTabsBackupName");
     
     if (backupBtn) {
         backupBtn.addEventListener("click", function(e) {
             e.preventDefault();
-            console.log('🔄 Backup button clicked');
             
-            // Get backup name
+            if (isCreatingBackup) {
+                console.log('⚠️ Backup creation already in progress');
+                return;
+            }
+            
             let backupName = '';
             if (backupNameInput) {
                 backupName = backupNameInput.value.trim();
             }
             
-            // Show processing state
+            isCreatingBackup = true;
             backupBtn.disabled = true;
             backupBtn.textContent = '⏳ Creating Backup...';
             
@@ -84,77 +243,73 @@ document.addEventListener("DOMContentLoaded", function() {
                 action: "backupAllTabs",
                 backupName: backupName
             }, function(response) {
-                console.log('📥 Backup response:', response);
-                
-                // Restore button state
+                isCreatingBackup = false;
                 backupBtn.disabled = false;
                 backupBtn.textContent = '💾 Backup All Tabs';
                 
                 if (chrome.runtime.lastError) {
-                    console.error('❌ Runtime error:', chrome.runtime.lastError);
                     alert("Error: " + chrome.runtime.lastError.message);
                     return;
                 }
                 
                 if (response && response.success) {
-                    alert(`✅ Successfully backed up ${response.count} tabs!\n\nBackup Name: "${response.backupName}"\nSession ID: ${response.sessionId}\n\nIncludes both regular and suspended tabs.`);
+                    alert(`✅ Successfully backed up!\n\n📊 Opened Tabs: ${response.regularCount || 0}\n🪁 Suspended Tabs: ${response.suspendedCount || 0}\n\nBackup: "${response.backupName}"`);
                     if (backupNameInput) backupNameInput.value = '';
                     updateBackupsList();
-                    updateCurrentSessionId();
                 } else {
-                    console.error('❌ Backup failed:', response);
                     alert(`❌ Failed to backup tabs: ${response?.error || 'Unknown error'}`);
                 }
             });
         });
     }
     
-    // Create New Session
+    // FIXED: Create New Session - prevent duplicates and keep suspended tabs
     const newSessionBtn = document.getElementById("newSession");
     
     if (newSessionBtn) {
         newSessionBtn.addEventListener("click", function(e) {
             e.preventDefault();
-            console.log('🔄 New session button clicked');
             
-            if (!confirm('This will suspend ALL current tabs and create a new session.\n\nYour previous session will be saved as backup.\n\nContinue?')) {
+            if (isCreatingSession) {
+                console.log('⚠️ Session creation already in progress');
                 return;
             }
             
+            if (!confirm('This will suspend ONLY opened tabs and create a new session.\n\nSuspended tabs will remain suspended.\nYour current session will be saved as backup.\n\nContinue?')) {
+                return;
+            }
+            
+            isCreatingSession = true;
             newSessionBtn.disabled = true;
             newSessionBtn.textContent = '⏳ Creating Session...';
             
             chrome.runtime.sendMessage({action: "createNewSession"}, function(response) {
-                console.log('📥 New session response:', response);
-                
+                isCreatingSession = false;
                 newSessionBtn.disabled = false;
                 newSessionBtn.textContent = '✨ Create New Session';
                 
                 if (chrome.runtime.lastError) {
-                    console.error('❌ Runtime error:', chrome.runtime.lastError);
                     alert("Error: " + chrome.runtime.lastError.message);
                     return;
                 }
                 
                 if (response && response.success) {
-                    alert(`✅ New Session Created!\n\n🆔 Session ID: ${response.sessionId}\n💤 Suspended: ${response.suspended} tabs\n💾 Previous session saved with ${response.previousCount} tabs`);
+                    alert(`✅ New Session Created!\n\n🆔 Session ID: ${response.sessionId}\n✨ Newly Suspended: ${response.suspended} tabs\n💾 Previous session backed up`);
                     updateCurrentSessionId();
                     updateBackupsList();
                 } else {
-                    console.error('❌ New session failed:', response);
                     alert(`❌ Failed to create new session: ${response?.error || 'Unknown error'}`);
                 }
             });
         });
     }
     
-    // Import Tabs
+    // Import, Restore, Copy functions (unchanged)
     const importBtn = document.getElementById("importAllTabs");
     const importFile = document.getElementById("importAllTabsFile");
     
     if (importBtn && importFile) {
         importBtn.addEventListener("click", () => importFile.click());
-        
         importFile.addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (file) {
@@ -181,7 +336,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // Restore by Session ID
     const restoreBtn = document.getElementById("restoreBySessionId");
     const sessionInput = document.getElementById("sessionIdInput");
     
@@ -205,7 +359,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // Copy Session ID
     const copySessionBtn = document.getElementById("copySessionId");
     if (copySessionBtn) {
         copySessionBtn.addEventListener("click", () => {
@@ -219,7 +372,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // Update current session ID display
     function updateCurrentSessionId() {
         chrome.runtime.sendMessage({action: "getSessionId"}, response => {
             const sessionIdElement = document.getElementById("currentSessionId");
@@ -229,7 +381,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // FIXED: Update backups list with EVENT DELEGATION instead of onclick
+    // FIXED: Update backups list with working delete buttons
     function updateBackupsList() {
         chrome.runtime.sendMessage({action: "getBackupsList"}, response => {
             const backupsListElement = document.getElementById("backupsList");
@@ -237,27 +389,25 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (!response.backups || response.backups.length === 0) {
                     backupsListElement.innerHTML = '<div style="color: rgba(255,255,255,0.7); font-size: 14px; text-align: center; padding: 20px;">No backups found.</div>';
                 } else {
-                    const backupItems = response.backups.map(backup => `
-                        <div style="
+                    const backupItems = response.backups.map(backup => {
+                        const openedTabs = backup.regularCount || (backup.tabs ? backup.tabs.filter(t => !t.suspended).length : 0);
+                        const suspendedTabs = backup.suspendedCount || (backup.tabs ? backup.tabs.filter(t => t.suspended).length : 0);
+                        
+                        return `
+                        <div class="backup-item" style="
                             background: rgba(255, 255, 255, 0.1);
-                            backdrop-filter: blur(10px);
                             border: 1px solid rgba(255, 255, 255, 0.2);
                             border-radius: 8px;
                             padding: 16px;
                             margin: 12px 0;
                             position: relative;
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                            transition: all 0.3s ease;
-                        " onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='translateY(-2px)'" 
-                           onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.transform='translateY(0px)'">
-                           
-                            <!-- Delete X button in top right corner -->
+                        ">
                             <button class="delete-backup-btn" data-backup-name="${backup.name}" 
                                     style="
                                         position: absolute;
                                         top: 8px;
                                         right: 8px;
-                                        background: rgba(244, 67, 54, 0.8);
+                                        background: #f44336;
                                         border: none;
                                         color: white;
                                         width: 24px;
@@ -265,59 +415,23 @@ document.addEventListener("DOMContentLoaded", function() {
                                         border-radius: 50%;
                                         cursor: pointer;
                                         font-size: 12px;
-                                        font-weight: bold;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        transition: all 0.3s ease;
-                                        z-index: 10;
                                     "
-                                    onmouseover="this.style.background='rgba(244, 67, 54, 1)'; this.style.transform='scale(1.1)'"
-                                    onmouseout="this.style.background='rgba(244, 67, 54, 0.8)'; this.style.transform='scale(1)'"
                                     title="Delete this backup">
                                 ✕
                             </button>
                             
-                            <!-- Main content -->
                             <div style="padding-right: 40px;">
-                                <!-- Backup name -->
-                                <div style="
-                                    color: white;
-                                    font-size: 16px;
-                                    font-weight: 600;
-                                    margin-bottom: 8px;
-                                    line-height: 1.3;
-                                ">${backup.name}</div>
-                                
-                                <!-- Session info -->
-                                <div style="
-                                    color: rgba(255, 255, 255, 0.8);
-                                    font-size: 13px;
-                                    line-height: 1.4;
-                                    margin-bottom: 12px;
-                                ">
-                                    <div style="margin-bottom: 4px;">
-                                        <span style="color: rgba(255, 255, 255, 0.6);">📋 Session:</span> 
-                                        <code style="
-                                            background: rgba(0, 0, 0, 0.3);
-                                            padding: 2px 6px;
-                                            border-radius: 4px;
-                                            font-family: 'Courier New', monospace;
-                                            font-size: 12px;
-                                        ">${backup.sessionId}</code>
-                                    </div>
-                                    <div style="margin-bottom: 4px;">
-                                        <span style="color: rgba(255, 255, 255, 0.6);">📊 Tabs:</span> 
-                                        <span style="color: #4CAF50; font-weight: 500;">${backup.count || backup.tabs?.length || 0}</span>
-                                        <span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">(includes suspended tabs)</span>
-                                    </div>
-                                    <div style="margin-bottom: 0;">
-                                        <span style="color: rgba(255, 255, 255, 0.6);">📅 Created:</span> 
-                                        <span>${new Date(backup.created).toLocaleString()}</span>
-                                    </div>
+                                <div style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 8px;">
+                                    ${backup.name}
                                 </div>
                                 
-                                <!-- Restore button -->
+                                <div style="color: rgba(255, 255, 255, 0.8); font-size: 13px; margin-bottom: 12px;">
+                                    <div>📋 Session: <code>${backup.sessionId}</code></div>
+                                    <div>📊 Opened Tabs: <span style="color: #4CAF50;">${openedTabs}</span></div>
+                                    <div>🪁 Suspended Tabs: <span style="color: #FF9800;">${suspendedTabs}</span></div>
+                                    <div>📅 Created: ${new Date(backup.created).toLocaleString()}</div>
+                                </div>
+                                
                                 <button class="restore-backup-btn" data-session-id="${backup.sessionId}"
                                         style="
                                             background: rgba(76, 175, 80, 0.2);
@@ -327,119 +441,112 @@ document.addEventListener("DOMContentLoaded", function() {
                                             border-radius: 6px;
                                             cursor: pointer;
                                             font-size: 13px;
-                                            font-weight: 500;
-                                            transition: all 0.3s ease;
-                                            backdrop-filter: blur(5px);
-                                        "
-                                        onmouseover="this.style.background='rgba(76, 175, 80, 0.3)'; this.style.borderColor='rgba(76, 175, 80, 0.6)'; this.style.transform='translateY(-1px)'"
-                                        onmouseout="this.style.background='rgba(76, 175, 80, 0.2)'; this.style.borderColor='rgba(76, 175, 80, 0.4)'; this.style.transform='translateY(0px)'">
+                                        ">
                                     🔄 Restore Backup
                                 </button>
                             </div>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
                     backupsListElement.innerHTML = backupItems;
                     
-                    // FIXED: Add event listeners using EVENT DELEGATION
-                    setupBackupButtonEventListeners();
+                    setupBackupEventListeners();
                 }
             }
         });
     }
     
-    // FIXED: Setup event listeners for dynamically created buttons
-    function setupBackupButtonEventListeners() {
+    // FIXED: Event listeners for backup buttons
+    function setupBackupEventListeners() {
         const backupsListElement = document.getElementById("backupsList");
         if (!backupsListElement) return;
         
-        // Remove existing listeners to prevent duplicates
-        backupsListElement.removeEventListener('click', handleBackupButtonClick);
-        
-        // Add single delegated event listener
-        backupsListElement.addEventListener('click', handleBackupButtonClick);
-        
-        console.log('✅ Backup button event listeners setup complete');
-    }
-    
-    // FIXED: Handle backup button clicks with event delegation
-    function handleBackupButtonClick(event) {
-        const target = event.target;
-        
-        // Handle restore button clicks
-        if (target.classList.contains('restore-backup-btn')) {
-            event.preventDefault();
-            const sessionId = target.getAttribute('data-session-id');
-            console.log('🔄 Restore backup clicked for session:', sessionId);
+        // Use event delegation for dynamically created buttons
+        backupsListElement.addEventListener('click', function(event) {
+            const target = event.target;
+            event.stopPropagation();
             
-            if (confirm(`Restore backup session: ${sessionId}?\n\nThis will open all tabs from that session (including previously suspended tabs).`)) {
-                target.disabled = true;
-                target.textContent = '⏳ Restoring...';
+            if (target.classList.contains('restore-backup-btn')) {
+                const sessionId = target.getAttribute('data-session-id');
+                console.log('🔄 Restore clicked for:', sessionId);
                 
-                chrome.runtime.sendMessage({
-                    action: "restoreSession",
-                    sessionId: sessionId
-                }, response => {
-                    target.disabled = false;
-                    target.textContent = '🔄 Restore Backup';
+                if (confirm(`Restore backup session: ${sessionId}?`)) {
+                    target.disabled = true;
+                    target.textContent = '⏳ Restoring...';
                     
-                    if (response && response.success) {
-                        alert(`✅ Restored ${response.restored} tabs from backup session: ${sessionId}`);
-                    } else {
-                        alert(`❌ Failed to restore backup: ${response?.error || 'Unknown error'}`);
-                    }
-                });
-            }
-        }
-        
-        // Handle delete button clicks
-        else if (target.classList.contains('delete-backup-btn')) {
-            event.preventDefault();
-            const backupName = target.getAttribute('data-backup-name');
-            console.log('🗑️ Delete backup clicked for:', backupName);
-            
-            if (confirm(`Delete backup "${backupName}"?\n\nThis action cannot be undone.`)) {
-                target.disabled = true;
-                target.style.opacity = '0.5';
-                
-                chrome.runtime.sendMessage({
-                    action: "deleteBackup",
-                    backupName: backupName
-                }, response => {
-                    if (response && response.success) {
-                        alert(`✅ Backup "${backupName}" deleted successfully.`);
-                        updateBackupsList(); // Refresh the list
-                    } else {
-                        alert(`❌ Failed to delete backup: ${response?.error || 'Unknown error'}`);
+                    chrome.runtime.sendMessage({
+                        action: "restoreSession",
+                        sessionId: sessionId
+                    }, response => {
                         target.disabled = false;
-                        target.style.opacity = '1';
-                    }
-                });
+                        target.textContent = '🔄 Restore Backup';
+                        
+                        if (response && response.success) {
+                            alert(`✅ Restored ${response.restored} tabs`);
+                        } else {
+                            alert(`❌ Failed to restore: ${response?.error || 'Unknown error'}`);
+                        }
+                    });
+                }
             }
-        }
+            
+            // FIXED: Delete button functionality
+            else if (target.classList.contains('delete-backup-btn')) {
+                const backupName = target.getAttribute('data-backup-name');
+                console.log('🗑️ Delete clicked for:', backupName);
+                
+                if (confirm(`Delete backup "${backupName}"?\n\nThis cannot be undone.`)) {
+                    target.disabled = true;
+                    target.style.opacity = '0.5';
+                    
+                    chrome.runtime.sendMessage({
+                        action: "deleteBackup",
+                        backupName: backupName
+                    }, response => {
+                        console.log('Delete response:', response);
+                        
+                        if (response && response.success) {
+                            alert(`✅ Backup "${backupName}" deleted successfully`);
+                            updateBackupsList(); // Refresh the list
+                        } else {
+                            alert(`❌ Failed to delete backup: ${response?.error || 'Unknown error'}`);
+                            target.disabled = false;
+                            target.style.opacity = '1';
+                        }
+                    });
+                }
+            }
+        });
+        
+        console.log('✅ Backup event listeners setup complete');
     }
     
     // Initialize
     updateCurrentSessionId();
     updateBackupsList();
     
-    console.log('✅ Complete session management setup finished');
+    console.log('✅ FIXED session management setup complete');
 });
-EOF
+JSEOF
+
+echo "✅ Fixed exportTabs.js - proper session creation and working delete buttons"
 
 echo ""
-echo "✅ BACKUP BUTTONS FIXED!"
+echo "✅ ALL CRITICAL ISSUES FIXED!"
 echo ""
 echo "🔧 What was fixed:"
-echo "   ❌ Your fix.sh had JavaScript instead of bash commands"
-echo "   ✅ Created proper exportTabs.js with event delegation"
-echo "   ✅ Restore backup buttons now work"
-echo "   ✅ Delete backup buttons (X) now work"
-echo "   ✅ Glass styling preserved"
+echo "   🛡️ Context Menu: Fixed duplicate creation with proper cleanup"
+echo "   🚫 Session Duplicates: Added proper locking mechanisms"  
+echo "   💤 Keep Suspended: New sessions DON'T close existing suspended tabs"
+echo "   ✕ Delete Buttons: Fixed event delegation for backup deletion"
+echo "   📊 Tab Counts: Proper opened vs suspended tab counting"
+echo "   🎯 State Management: Global state prevents multiple operations"
 echo ""
 echo "🔄 Please reload your extension and test:"
-echo "   1. Create a backup"
-echo "   2. Check Session Backups section"
-echo "   3. Click 'Restore Backup' button"
-echo "   4. Click X button to delete backup"
+echo "   1. No context menu duplicate errors"
+echo "   2. Create New Session keeps existing suspended tabs"
+echo "   3. No duplicate session backups"
+echo "   4. Delete (X) buttons work properly"
+echo "   5. Proper tab counts in backups"
 echo ""
-echo "✅ Both buttons should work now!"
+echo "✅ Everything should work correctly now!"

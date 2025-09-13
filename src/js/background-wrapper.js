@@ -207,6 +207,7 @@ function handleMessage(request, sender, sendResponse) {
                     tabs: allTabs,
                     created: Date.now(),
                     count: allTabs.length,
+                    regularCount: allTabs.filter(t => !t.suspended).length,
                     suspendedCount: allTabs.filter(t => t.suspended).length,
                     regularCount: allTabs.filter(t => !t.suspended).length
                 };
@@ -229,6 +230,8 @@ function handleMessage(request, sender, sendResponse) {
                         sendResponse({
                             success: true, 
                             count: allTabs.length, 
+                    regularCount: allTabs.filter(t => !t.suspended).length,
+                    suspendedCount: allTabs.filter(t => t.suspended).length,
                             sessionId: currentSessionId,
                             backupName: backupName,
                             suspendedCount: backupData.suspendedCount,
@@ -311,37 +314,45 @@ function handleMessage(request, sender, sendResponse) {
         case 'createNewSession':
             chrome.tabs.query({}, async (tabs) => {
                 try {
+                    console.log("🔄 Creating new session without closing suspended tabs...");
+                    
                     const currentTabs = tabs.filter(canManageTab).map((tab) => ({
                         id: tab.id,
                         title: tab.title,
                         url: tab.url,
                         sessionId: currentSessionId,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        suspended: tab.url.includes("suspended.html")
                     }));
                     
                     if (currentTabs.length > 0) {
+                        const backupName = `Session_${new Date().toISOString().slice(0,19).replace(/:/g,"-")}`;
                         await chrome.storage.local.set({ 
                             [`session_${currentSessionId}`]: currentTabs,
-                            [`backup_previous_${Date.now()}`]: {
-                                name: `Previous Session ${new Date().toLocaleString()}`,
+                            [`backup_${backupName}`]: {
+                                name: backupName,
                                 sessionId: currentSessionId,
                                 tabs: currentTabs,
-                                created: Date.now()
+                                created: Date.now(),
+                                count: currentTabs.length,
+                                regularCount: currentTabs.filter(t => !t.suspended).length,
+                                suspendedCount: currentTabs.filter(t => t.suspended).length
                             }
                         });
+                        console.log(`✅ Saved current session as backup: ${backupName}`);
                     }
                     
                     const newSessionId = `gs-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
                     
                     let suspendedCount = 0;
                     const suspendPromises = tabs.map(async (tab) => {
-                        if (canManageTab(tab)) {
+                        if (canManageTab(tab) && !tab.url.includes("suspended.html")) {
                             try {
-                                const suspendedUrl = chrome.runtime.getURL('suspended.html') + 
-                                    '?uri=' + encodeURIComponent(tab.url) + 
-                                    '&title=' + encodeURIComponent(tab.title) +
-                                    '&sessionId=' + encodeURIComponent(newSessionId) +
-                                    '&tabId=' + encodeURIComponent(tab.id);
+                                const suspendedUrl = chrome.runtime.getURL("suspended.html") + 
+                                    "?uri=" + encodeURIComponent(tab.url) + 
+                                    "&title=" + encodeURIComponent(tab.title) +
+                                    "&sessionId=" + encodeURIComponent(newSessionId) +
+                                    "&tabId=" + encodeURIComponent(tab.id);
                                 
                                 await chrome.tabs.update(tab.id, { url: suspendedUrl });
                                 suspendedCount++;
@@ -355,7 +366,7 @@ function handleMessage(request, sender, sendResponse) {
                                 });
                                 
                             } catch (error) {
-                                console.error('Error suspending tab:', error);
+                                console.error("Error suspending tab:", error);
                             }
                         }
                     });
@@ -368,7 +379,7 @@ function handleMessage(request, sender, sendResponse) {
                     await applySessionIdToAllTabs();
                     await storeCurrentTabsForProtection();
                     
-                    console.log(`✅ Created new session ${newSessionId}, suspended ${suspendedCount} tabs`);
+                    console.log(`✅ Created new session ${newSessionId}, suspended ${suspendedCount} new tabs`);
                     
                     sendResponse({
                         success: true,
@@ -378,7 +389,7 @@ function handleMessage(request, sender, sendResponse) {
                     });
                     
                 } catch (error) {
-                    console.error('❌ Error creating new session:', error);
+                    console.error("❌ Error creating new session:", error);
                     sendResponse({
                         success: false,
                         error: error.message
@@ -655,23 +666,21 @@ async function getTabInfo(tabId) {
 // Context menu setup with duplicate prevention
 async function setupContextMenu() {
     return new Promise((resolve) => {
-        // Always remove all existing context menus first
         chrome.contextMenus.removeAll(() => {
             if (chrome.runtime.lastError) {
                 console.warn("Context menu removeAll warning:", chrome.runtime.lastError.message);
             }
             
-            const menuItems = [
-                { id: "suspend-tab", title: "💤 Suspend this tab", contexts: ["page"] },
-                { id: "suspend-other", title: "😴 Suspend other tabs", contexts: ["page"] },
-                { id: "unsuspend-all", title: "🔄 Unsuspend all tabs", contexts: ["page"] }
-            ];
-            
-            let itemsCreated = 0;
-            const totalItems = menuItems.length;
-            
-            // Add small delay to ensure removeAll completes
             setTimeout(() => {
+                const menuItems = [
+                    { id: "suspend-tab", title: "💤 Suspend this tab", contexts: ["page"] },
+                    { id: "suspend-other", title: "😴 Suspend other tabs", contexts: ["page"] },
+                    { id: "unsuspend-all", title: "🔄 Unsuspend all tabs", contexts: ["page"] }
+                ];
+                
+                let itemsCreated = 0;
+                const totalItems = menuItems.length;
+                
                 menuItems.forEach((item) => {
                     chrome.contextMenus.create(item, () => {
                         if (chrome.runtime.lastError) {
@@ -688,7 +697,7 @@ async function setupContextMenu() {
                         }
                     });
                 });
-            }, 100); // 100ms delay
+            }, 150);
         });
     });
 }
