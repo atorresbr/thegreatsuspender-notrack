@@ -1,0 +1,3 @@
+atorresbr/thegreatsuspender-notrack: A chrome extension for suspending all tabs to free up memory, privacy-oriented with no analytics tracking.	https://github.com/atorresbr/thegreatsuspender-notrack
+Billing Usage	https://github.com/settings/billing/usage?period=3&group=0&customer=39911629
+Google Tradutor	https://translate.google.com.br/?sl=en&tl=pt&text=Account%20budgets%0A&op=translate
