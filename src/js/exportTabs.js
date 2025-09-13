@@ -1,11 +1,12 @@
-console.log('✅ ExportTabs.js with FIXED session management loaded');
+console.log('✅ ExportTabs.js with FIXED double-restore prevention loaded');
 
 document.addEventListener("DOMContentLoaded", function() {
     console.log('✅ DOM loaded, setting up FIXED session management...');
     
-    // Global state management
+    // Global state management to prevent multiple operations
     let isCreatingSession = false;
     let isCreatingBackup = false;
+    let isRestoringSession = false;
     
     // Export All Tabs
     const exportBtn = document.getElementById("exportAllTabs");
@@ -101,22 +102,29 @@ document.addEventListener("DOMContentLoaded", function() {
             e.preventDefault();
             
             if (isCreatingSession) {
-                console.log('⚠️ Session creation already in progress');
+                console.log("⚠️ Session creation already in progress");
                 return;
             }
             
-            if (!confirm('This will suspend ONLY opened tabs and create a new session.\n\nSuspended tabs will remain suspended.\nYour current session will be saved as backup.\n\nContinue?')) {
-                return;
+            // Show confirmation dialog
+            const userConfirmed = confirm("This will suspend ONLY opened tabs and create a new session.\n\nSuspended tabs will remain suspended.\nYour current session will be saved as backup.\n\nContinue?");
+            
+            // FIXED: Only proceed if user confirms
+            if (!userConfirmed) {
+                console.log("🚫 User cancelled session creation");
+                return; // Exit immediately if cancelled
             }
+            
+            console.log("✅ User confirmed session creation, proceeding...");
             
             isCreatingSession = true;
             newSessionBtn.disabled = true;
-            newSessionBtn.textContent = '⏳ Creating Session...';
+            newSessionBtn.textContent = "⏳ Creating Session...";
             
             chrome.runtime.sendMessage({action: "createNewSession"}, function(response) {
                 isCreatingSession = false;
                 newSessionBtn.disabled = false;
-                newSessionBtn.textContent = '✨ Create New Session';
+                newSessionBtn.textContent = "✨ Create New Session";
                 
                 if (chrome.runtime.lastError) {
                     alert("Error: " + chrome.runtime.lastError.message);
@@ -128,13 +136,15 @@ document.addEventListener("DOMContentLoaded", function() {
                     updateCurrentSessionId();
                     updateBackupsList();
                 } else {
-                    alert(`❌ Failed to create new session: ${response?.error || 'Unknown error'}`);
+                    alert(`❌ Failed to create new session: ${response?.error || "Unknown error"}`);
                 }
             });
         });
     }
+        });
+    }
     
-    // Import, Restore, Copy functions (unchanged)
+    // Import, Copy functions (unchanged)
     const importBtn = document.getElementById("importAllTabs");
     const importFile = document.getElementById("importAllTabsFile");
     
@@ -166,17 +176,33 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
+    // FIXED: Restore by Session ID - prevent double restore
     const restoreBtn = document.getElementById("restoreBySessionId");
     const sessionInput = document.getElementById("sessionIdInput");
     
     if (restoreBtn && sessionInput) {
-        restoreBtn.addEventListener("click", () => {
+        restoreBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            
+            if (isRestoringSession) {
+                console.log('⚠️ Session restore already in progress');
+                return;
+            }
+            
             const sessionId = sessionInput.value.trim();
             if (sessionId) {
+                isRestoringSession = true;
+                restoreBtn.disabled = true;
+                restoreBtn.textContent = '⏳ Restoring...';
+                
                 chrome.runtime.sendMessage({
                     action: "restoreSession",
                     sessionId: sessionId
                 }, response => {
+                    isRestoringSession = false;
+                    restoreBtn.disabled = false;
+                    restoreBtn.textContent = '🔄 Restore Session';
+                    
                     if (response && response.success) {
                         alert(`✅ Restored ${response.restored} tabs from session: ${response.sessionId}`);
                     } else {
@@ -211,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // FIXED: Update backups list with working delete buttons
+    // FIXED: Update backups list with working delete buttons and no double-restore
     function updateBackupsList() {
         chrome.runtime.sendMessage({action: "getBackupsList"}, response => {
             const backupsListElement = document.getElementById("backupsList");
@@ -286,21 +312,33 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     
-    // FIXED: Event listeners for backup buttons
+    // FIXED: Event listeners with double-restore prevention
     function setupBackupEventListeners() {
         const backupsListElement = document.getElementById("backupsList");
         if (!backupsListElement) return;
         
+        // Remove any existing listeners to prevent duplicates
+        const newElement = backupsListElement.cloneNode(true);
+        backupsListElement.parentNode.replaceChild(newElement, backupsListElement);
+        
         // Use event delegation for dynamically created buttons
-        backupsListElement.addEventListener('click', function(event) {
+        document.getElementById("backupsList").addEventListener('click', function(event) {
             const target = event.target;
+            event.preventDefault();
             event.stopPropagation();
             
+            // FIXED: Restore button with double-restore prevention
             if (target.classList.contains('restore-backup-btn')) {
+                if (isRestoringSession) {
+                    console.log('⚠️ Restore already in progress, ignoring click');
+                    return;
+                }
+                
                 const sessionId = target.getAttribute('data-session-id');
                 console.log('🔄 Restore clicked for:', sessionId);
                 
-                if (confirm(`Restore backup session: ${sessionId}?`)) {
+                if (confirm(`Restore backup session: ${sessionId}?\n\nThis will open all tabs from this backup.`)) {
+                    isRestoringSession = true;
                     target.disabled = true;
                     target.textContent = '⏳ Restoring...';
                     
@@ -308,11 +346,18 @@ document.addEventListener("DOMContentLoaded", function() {
                         action: "restoreSession",
                         sessionId: sessionId
                     }, response => {
-                        target.disabled = false;
-                        target.textContent = '🔄 Restore Backup';
+                        // Reset state after a delay to ensure operation completes
+                        setTimeout(() => {
+                            isRestoringSession = false;
+                            target.disabled = false;
+                            target.textContent = '🔄 Restore Backup';
+                        }, 2000);
                         
                         if (response && response.success) {
-                            alert(`✅ Restored ${response.restored} tabs`);
+                            // Use setTimeout to prevent double-popup issue
+                            setTimeout(() => {
+                                alert(`✅ Restored ${response.restored} tabs from backup`);
+                            }, 100);
                         } else {
                             alert(`❌ Failed to restore: ${response?.error || 'Unknown error'}`);
                         }
