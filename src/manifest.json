@@ -17,8 +17,7 @@
   ],
   
   "background": {
-    "service_worker": "js/background-wrapper.js",
-    "type": "module"
+    "service_worker": "js/background-wrapper.js"
   },
   
   "content_scripts": [

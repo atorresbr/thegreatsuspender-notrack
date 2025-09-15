@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab Suspended</title>
+    <link rel="stylesheet" href="css/suspended.css">
+</head>
+<body class="theme-purple">
+    <div class="suspended-container">
+        <!-- Main suspended tab card -->
+        <div class="suspended-card">
+            <div class="card-header">
+                <div class="tab-icon">😴</div>
+                <div class="tab-status">
+                    <h1>Tab Suspended</h1>
+                    <p class="status-subtitle">Click anywhere to restore, or use controls below</p>
+                </div>
+            </div>
+            
+            <!-- Tab Information Section -->
+            <div class="tab-info-section">
+                <h3>📋 Tab Information</h3>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">🏷️ Title:</div>
+                        <div class="info-value" id="tabTitle">Loading...</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">🔗 URL:</div>
+                        <div class="info-value url-display" id="tabUrl">Loading...</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">🆔 Tab ID:</div>
+                        <div class="info-value tab-id" id="tabId">Loading...</div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">🧮 Session ID:</div>
+                        <div class="info-value session-id" id="sessionId">Loading...</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">💾 Memory Saved:</div>
+                        <div class="info-value memory-saved" id="memorySaved">~75 MB</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">⏰ Suspended At:</div>
+                        <div class="info-value" id="suspendedTime">Loading...</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">🕒 Duration:</div>
+                        <div class="info-value" id="suspendedDuration">Loading...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Control Buttons Section -->
+            <div class="controls-section">
+                <h3>🎮 Controls</h3>
+                
+                <div class="control-buttons">
+                    <button class="control-btn primary" id="restoreBtn" >
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Restore Tab</span>
+                        <span class="btn-shortcut">Space / Enter</span>
+                    </button>
+                    
+                    <button class="control-btn secondary" id="restoreNewWindowBtn" >
+                        <span class="btn-icon">🪟</span>
+                        <span class="btn-text">Restore in New Window</span>
+                        <span class="btn-shortcut">Ctrl + Enter</span>
+                    </button>
+                    
+                    <button class="control-btn accent" id="copyUrlBtn" >
+                        <span class="btn-icon">📋</span>
+                        <span class="btn-text">Copy URL</span>
+                        <span class="btn-shortcut">Ctrl + C</span>
+                    </button>
+                    
+                    <button class="control-btn info" id="openOptionsBtn" >
+                        <span class="btn-icon">⚙️</span>
+                        <span class="btn-text">Options</span>
+                        <span class="btn-shortcut">Escape</span>
+                    </button>
+                </div>
+                
+                <!-- Prevention Toggle -->
+                <div class="prevention-section">
+                    <div class="prevention-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="preventAutoRestore">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="toggle-info">
+                            <div class="toggle-title">🛡️ Prevent Auto-Restore</div>
+                            <div class="toggle-subtitle">Don't restore when clicking outside controls</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Section -->
+            <div class="stats-section">
+                <h3>📊 Session Statistics</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">😴</div>
+                        <div class="stat-value" id="totalSuspended">-</div>
+                        <div class="stat-label">Suspended Tabs</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-value" id="totalMemorySaved">-</div>
+                        <div class="stat-label">Total Memory Saved</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="sessionDuration">-</div>
+                        <div class="stat-label">Session Duration</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Messages -->
+        <div class="status-message" id="statusMessage"></div>
+        
+        <!-- Keyboard Shortcuts Help -->
+        <div class="shortcuts-help" id="shortcutsHelp">
+            <div class="shortcuts-content">
+                <h4>⌨️ Keyboard Shortcuts</h4>
+                <div class="shortcuts-list">
+                    <div class="shortcut-item">
+                        <kbd>Space</kbd> or <kbd>Enter</kbd> - Restore tab
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>Enter</kbd> - Restore in new window
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>C</kbd> - Copy URL
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Escape</kbd> - Open options
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>F1</kbd> - Toggle this help
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/suspended.js"></script>
+</body>
+</html>

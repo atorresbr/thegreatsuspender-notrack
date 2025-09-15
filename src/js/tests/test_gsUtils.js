@@ -77,7 +77,7 @@ testSuites.push(
             isUrl3Valid &&
             isUrl4Valid &&
             isUrl5Valid &&
-            isUrl6Valid &&
+            isUrl6Valid
         );
       },
 
