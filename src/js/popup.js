@@ -136,7 +136,7 @@ function setupButtons() {
             try {
                 const response = await chrome.runtime.sendMessage({ 
                     action: 'suspendOtherTabs',
-                    activeTabId: currentTab?.id 
+                    activeTabId: currentTab.id 
                 });
                 
                 if (response && response.success) {

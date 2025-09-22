@@ -866,3 +866,100 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 initializeServiceWorker();
+<<<<<<< HEAD
+=======
+
+// Enhanced Tab Protection Integration
+console.log('🛡️ Integrating Enhanced Tab Protection...');
+
+// Track suspended tabs for protection
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url && tab.url.includes('suspended.html')) {
+        // This is a suspended tab - protect it
+        console.log('🛡️ Protecting suspended tab:', tabId, tab.title);
+        
+        const tabInfo = {
+            id: tabId,
+            title: tab.title,
+            url: tab.url,
+            originalUrl: extractOriginalUrlFromSuspended(tab.url),
+            sessionId: extractSessionIdFromSuspended(tab.url),
+            favIconUrl: tab.favIconUrl,
+            pinned: tab.pinned,
+            windowId: tab.windowId,
+            index: tab.index,
+            timestamp: Date.now(),
+            protected: true
+        };
+        
+        // Store in protection system
+        const result = await chrome.storage.local.get(['protectedTabs']);
+        const protectedTabs = result.protectedTabs || {};
+        protectedTabs[tabId] = tabInfo;
+        
+        await chrome.storage.local.set({ 
+            protectedTabs: protectedTabs,
+            lastProtectionUpdate: Date.now()
+        });
+        
+        console.log('✅ Tab protected:', tabId);
+    }
+});
+
+// Helper functions for URL extraction
+function extractOriginalUrlFromSuspended(suspendedUrl) {
+    try {
+        const urlParams = new URLSearchParams(suspendedUrl.split('?')[1] || '');
+        return urlParams.get('uri') || urlParams.get('url') || suspendedUrl;
+    } catch (error) {
+        return suspendedUrl;
+    }
+}
+
+function extractSessionIdFromSuspended(suspendedUrl) {
+    try {
+        const urlParams = new URLSearchParams(suspendedUrl.split('?')[1] || '');
+        return urlParams.get('sessionId') || 'unknown';
+    } catch (error) {
+        return 'unknown';
+    }
+}
+
+// Auto-restore on extension startup
+chrome.runtime.onStartup.addListener(async () => {
+    console.log('🔄 Extension startup - checking for tabs to restore...');
+    
+    // Small delay to let extension fully initialize
+    setTimeout(async () => {
+        const settings = await chrome.storage.local.get(['autoRestore']);
+        if (settings.autoRestore !== false) {
+            console.log('🔄 Auto-restore enabled, restoring protected tabs...');
+            
+            if (window.TabProtection && window.TabProtection.restoreAllProtectedTabs) {
+                window.TabProtection.restoreAllProtectedTabs();
+            } else {
+                // Fallback restoration
+                const result = await chrome.storage.local.get(['protectedTabs']);
+                const protectedTabs = result.protectedTabs || {};
+                const tabsToRestore = Object.values(protectedTabs);
+                
+                if (tabsToRestore.length > 0) {
+                    console.log('🔄 Fallback restore:', tabsToRestore.length, 'tabs');
+                    
+                    tabsToRestore.forEach((tabInfo, index) => {
+                        setTimeout(() => {
+                            chrome.tabs.create({
+                                url: tabInfo.url, // Keep as suspended
+                                active: false,
+                                pinned: tabInfo.pinned || false
+                            });
+                        }, index * 100);
+                    });
+                }
+            }
+        }
+    }, 3000);
+});
+
+console.log('✅ Enhanced Tab Protection integration complete');
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53

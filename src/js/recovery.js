@@ -37,8 +37,12 @@
 
   function removeTabFromList(tabToRemove) {
     // Add safety check for element
+<<<<<<< HEAD
     const recoveryTabsElement = document.recoveryTabsElement || document.createElement("div");
     const recoveryTabsEl = document.recoveryTabsElement;
+=======
+    const recoveryTabsEl = document.recoveryTabsElement || document.createElement("div");
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
     const childLinks = recoveryTabsEl.children;
 
     for (var i = 0; i < childLinks.length; i++) {
@@ -58,10 +62,16 @@
     }
 
     //if removing the last element.. (re-get the element this function gets called asynchronously
+<<<<<<< HEAD
     // Add safety check for element
     const recoveryTabsElement = document.recoveryTabsElement || document.createElement("div");
     if (document.recoveryTabsElement.children.length === 0) {
       //if we have already clicked the restore button then redirect to success page
+=======
+    //if removing the last element.. (re-get the element this function gets called asynchronously
+    // Add safety check for element
+    if (document.recoveryTabsElement && document.recoveryTabsElement.children.length === 0) {
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
       if (restoreAttempted) {
         document.getElementById('suspendy-guy-inprogress').style.display =
           'none';
@@ -80,10 +90,15 @@
 
   function showTabSpinners() {
     // Add safety check for element
+<<<<<<< HEAD
     const recoveryTabsElement = document.recoveryTabsElement || document.createElement("div");
     var recoveryTabsEl = document.recoveryTabsElement,
       childLinks = recoveryTabsEl.children;
 
+=======
+    var recoveryTabsEl = document.recoveryTabsElement || document.createElement("div");
+    var childLinks = recoveryTabsEl.children;
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
     for (var i = 0; i < childLinks.length; i++) {
       var tabContainerEl = childLinks[i];
       tabContainerEl.removeChild(tabContainerEl.firstChild);
@@ -104,6 +119,7 @@
   gsUtils.documentReadyAndLocalisedAsPromsied(document).then(async function() {
     var restoreEl = document.getElementById('restoreSession'),
       manageEl = document.getElementById('manageManuallyLink'),
+<<<<<<< HEAD
       previewsEl = document.getElementById('restoreSession'),
     // Add safety check for element
     const recoveryTabsElement = document.recoveryTabsElement || document.createElement("div");
@@ -115,6 +131,19 @@
       e.preventDefault();
       chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
     };
+=======
+      previewsEl = document.getElementById('restoreSession');
+    // Add safety check for element
+    var recoveryEl = document.recoveryTabsElement || document.createElement("div");
+    var warningEl = document.getElementById('warning');
+
+    if (manageEl) {
+      manageEl.onclick = function(e) {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
+      };
+    }
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
 
     if (previewsEl) {
       previewsEl.onclick = function(e) {

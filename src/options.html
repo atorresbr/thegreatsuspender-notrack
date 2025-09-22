@@ -21,62 +21,50 @@
                 <div class="card-subtitle">Choose your perfect color scheme</div>
             </div>
             <div class="card-content">
-                <div class="theme-grid">
-                    <button class="theme-btn selected" data-theme="purple" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <span class="theme-name">Purple Galaxy</span>
-                    </button>
-                    <button class="theme-btn" data-theme="ocean" style="background: linear-gradient(135deg, #667db6 0%, #0082c8 100%);">
-                        <span class="theme-name">Ocean Blue</span>
-                    </button>
-                    <button class="theme-btn" data-theme="sunset" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
-                        <span class="theme-name">Sunset Pink</span>
-                    </button>
-                    <button class="theme-btn" data-theme="forest" style="background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);">
-                        <span class="theme-name">Forest Green</span>
-                    </button>
-                    <button class="theme-btn" data-theme="fire" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
-                        <span class="theme-name">Fire Red</span>
-                    </button>
-                    <button class="theme-btn" data-theme="lavender" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
-                        <span class="theme-name">Lavender Dream</span>
-                    </button>
-                    <button class="theme-btn" data-theme="cosmic" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <span class="theme-name">Cosmic Purple</span>
-                    </button>
-                    <button class="theme-btn" data-theme="emerald" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                        <span class="theme-name">Emerald</span>
-                    </button>
-                    <button class="theme-btn" data-theme="rose" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <span class="theme-name">Rose Gold</span>
-                    </button>
-                    <button class="theme-btn" data-theme="sky" style="background: linear-gradient(135deg, #74b9ff 0%, #0084e3 100%);">
-                        <span class="theme-name">Sky Blue</span>
-                    </button>
-                    <button class="theme-btn" data-theme="peach" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
-                        <span class="theme-name">Peach</span>
-                    </button>
-                    <button class="theme-btn" data-theme="mint" style="background: linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%);">
-                        <span class="theme-name">Mint</span>
-                    </button>
-                    <button class="theme-btn" data-theme="golden" style="background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);">
-                        <span class="theme-name">Golden Hour</span>
-                    </button>
-                    <button class="theme-btn" data-theme="berry" style="background: linear-gradient(135deg, #8360c3 0%, #2ebf91 100%);">
-                        <span class="theme-name">Berry</span>
-                    </button>
-                    <button class="theme-btn" data-theme="coral" style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b95 100%);">
-                        <span class="theme-name">Coral</span>
-                    </button>
-                    <button class="theme-btn" data-theme="aurora" style="background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);">
-                        <span class="theme-name">Aurora</span>
-                    </button>
-                    <button class="theme-btn" data-theme="dark" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
-                        <span class="theme-name">Dark Mode</span>
-                    </button>
-                    <button class="theme-btn" data-theme="midnight" style="background: linear-gradient(135deg, #0f0f23 0%, #2d1b69 100%);">
-                        <span class="theme-name">Midnight</span>
-                    </button>
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="manualThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Manual Theme Selection</div>
+                        <div class="switch-subtitle">Use theme buttons above to select colors manually</div>
+                    </div>
                 </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="systemThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Follow System Dark/Light</div>
+                        <div class="switch-subtitle">Automatically switch based on system preference</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="lightThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Light Theme</div>
+                        <div class="switch-subtitle">Force aurora light theme regardless of system</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="darkThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Dark Theme</div>
+                        <div class="switch-subtitle">Force dark theme regardless of system</div>
+                    </div>
+                </div>
+            </div>
             </div>
         </div>
 
@@ -94,7 +82,48 @@
                         <span class="slider"></span>
                     </label>
                     <div class="switch-info">
+<<<<<<< HEAD
                         <div class="switch-title">Always Manual Theme Selection</div>
+=======
+                        <div class="switch-title">Manual Theme Selection</div>
+                        <div class="switch-subtitle">Use theme buttons above to select colors manually</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="systemThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Follow System Dark/Light</div>
+                        <div class="switch-subtitle">Automatically switch based on system preference</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="lightThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Light Theme</div>
+                        <div class="switch-subtitle">Force aurora light theme regardless of system</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="darkThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Dark Theme</div>
+                        <div class="switch-subtitle">Force dark theme regardless of system</div>
+                    </div>
+                </div>
+            </div>
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
                         <div class="switch-subtitle">Use the theme buttons above to select colors manually</div>
                     </div>
                 </div>
@@ -143,11 +172,48 @@
             <div class="card-content">
                 <div class="switch-group">
                     <label class="switch">
-                        <input type="checkbox" id="tabProtection" checked>
+                        <input type="checkbox" id="manualThemeSwitch">
                         <span class="slider"></span>
                     </label>
                     <div class="switch-info">
-                        <div class="switch-title">Keep tabs when extension reloads</div>
+                        <div class="switch-title">Manual Theme Selection</div>
+                        <div class="switch-subtitle">Use theme buttons above to select colors manually</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="systemThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Follow System Dark/Light</div>
+                        <div class="switch-subtitle">Automatically switch based on system preference</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="lightThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Light Theme</div>
+                        <div class="switch-subtitle">Force aurora light theme regardless of system</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="darkThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Dark Theme</div>
+                        <div class="switch-subtitle">Force dark theme regardless of system</div>
+                    </div>
+                </div>
+            </div>
                         <div class="switch-subtitle">Prevent suspended tabs from closing on extension reload</div>
                     </div>
                 </div>
@@ -172,11 +238,50 @@
                 <div class="card-title">Session Management</div>
             </div>
             <div class="card-content">
-                <div class="session-info">
-                    <strong>Current Session ID:</strong>
-                    <code id="currentSessionId">Loading...</code>
-                    <button class="btn-small" id="copySessionId">📋 Copy</button>
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="manualThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Manual Theme Selection</div>
+                        <div class="switch-subtitle">Use theme buttons above to select colors manually</div>
+                    </div>
                 </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="systemThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Follow System Dark/Light</div>
+                        <div class="switch-subtitle">Automatically switch based on system preference</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="lightThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Light Theme</div>
+                        <div class="switch-subtitle">Force aurora light theme regardless of system</div>
+                    </div>
+                </div>
+                
+                <div class="switch-group">
+                    <label class="switch">
+                        <input type="checkbox" id="darkThemeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="switch-info">
+                        <div class="switch-title">Always Dark Theme</div>
+                        <div class="switch-subtitle">Force dark theme regardless of system</div>
+                    </div>
+                </div>
+            </div>
                 
                 <div class="action-group">
                     <h4>🔄 Backup & Restore</h4>
@@ -253,5 +358,10 @@
     </select>
 </div>
 
+<<<<<<< HEAD
+=======
+    <script src="js/tabProtection.js"></script>
+    <script src="js/sessionRestoration.js"></script>
+>>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53
 </body>
 </html>
