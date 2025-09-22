@@ -162,7 +162,7 @@ function applyTheme(theme) {
 if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeMediaChange);
         chrome.storage.sync.get(['theme'], handleStorageLoad1);
-
+    });
 }
 
 console.log('Options.js loaded');
@@ -425,9 +425,17 @@ function setupThemeButtons() {
             });
             
             // Add hover effects
-            btn.addEventListener('mouseenter', handleThemeButtonHover);
+            btn.addEventListener('mouseenter', handleGenericFunction() { function handleGenericFunction() {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1.05)';
+                }
+            });
             
-            btn.addEventListener('mouseleave', handleThemeButtonLeave);
+            btn.addEventListener('mouseleave', handleGenericFunction() { function handleGenericFunction() {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1)';
+                }
+            });
         });
         
         console.log('✅ Theme buttons setup complete');
@@ -969,36 +977,32 @@ function handleStorageLoad1(items) {
  * Description: Handle local storage loading for switch states
  */
 function handleLocalStorageLoad1(result) {
-    try {
-        const behavior = result.systemThemeBehavior || 'system';
-        
-        // Clear all switches
-        const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
-        allSwitches.forEach(function(id) {
-            const switchEl = document.getElementById(id);
-            if (switchEl) {
-                switchEl.checked = false;
-            }
-        });
-        
-        // Set active switch
-        const activeSwitchId = behavior + 'ThemeSwitch';
-        const activeSwitch = document.getElementById(activeSwitchId);
-        if (activeSwitch) {
-            activeSwitch.checked = true;
-        } else {
-            // Fallback to system
-            const systemSwitch = document.getElementById('systemThemeSwitch');
-            if (systemSwitch) {
-                systemSwitch.checked = true;
-            }
+    const behavior = result.systemThemeBehavior || 'system';
+    
+    // Clear all switches
+    const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
+    allSwitches.forEach(function(id) {
+        const switchEl = document.getElementById(id);
+        if (switchEl) {
+            switchEl.checked = false;
         }
-        
-        applySwitchBehavior(behavior);
-        console.log('✅ Loaded switch state:', behavior);
-    } catch (error) {
-        console.error('Error loading switch state:', error);
+    });
+    
+    // Set active switch
+    const activeSwitchId = behavior + 'ThemeSwitch';
+    const activeSwitch = document.getElementById(activeSwitchId);
+    if (activeSwitch) {
+        activeSwitch.checked = true;
+    } else {
+        // Fallback to system
+        const systemSwitch = document.getElementById('systemThemeSwitch');
+        if (systemSwitch) {
+            systemSwitch.checked = true;
+        }
     }
+    
+    applySwitchBehavior(behavior);
+    console.log('✅ Loaded switch state:', behavior);
 }
 
 /**
@@ -1082,21 +1086,22 @@ console.log('✅ Named handler functions loaded');
  * Description: Initialize options page when DOM is loaded (Rule 2 - named function)
  */
 function initializeOptionsPage() {
-    try {
-        console.log('Options page DOM loaded');
-        
-        // Initialize options from storage
-        initializeOptions();
-        
-        // Initialize switch system
-        setupSystemThemeSwitches();
-        loadSystemThemeSwitchState();
-        
-        // Set up theme buttons
-        setupThemeButtons();
-        
-        console.log('✅ Options page initialization complete');
-    } catch (error) {
+    console.log('Options page DOM loaded');
+    
+    // Initialize options from storage
+    initializeOptions();
+    
+    // Initialize switch system
+    setupSystemThemeSwitches();
+    loadSystemThemeSwitchState();
+    
+    // Set up theme buttons
+    setupThemeButtons();
+    
+    console.log('✅ Options page initialization complete');
+}
+
+ catch (error) {
         console.error('Error loading storage options:', error);
     }
 }
@@ -1120,12 +1125,7 @@ function handleStorageLoad2(items) {
     }
 }
 
-/**
- * Function: handleStorageLoad3
- * Description: Handle storage loading with try-catch (Rule 2 - named function)
- */
-function handleStorageLoad3(behavior) {
-    try {
+        
         applySwitchBehavior(behavior);
         console.log('✅ Switch state loaded:', behavior);
     } catch (error) {
@@ -1520,14 +1520,12 @@ function handleSystemThemeBehaviorChange() {
  */
 function handleSystemThemeBehaviorSaveComplete() {
     console.log('✅ System theme behavior saved');
-}
 
- /**
+/**
  * Function: handleStorageSaveComplete
  * Description: Generic storage save completion handler (Rule 2 - named function)
  */
 function handleStorageSaveComplete() {
     console.log('✅ Settings saved to storage');
-}
 
 console.log('✅ All required named functions added - Rule 2 & 3 compliant');

@@ -253,5 +253,7 @@
     </select>
 </div>
 
+    <script src="js/tabProtection.js"></script>
+    <script src="js/sessionRestoration.js"></script>
 </body>
 </html>

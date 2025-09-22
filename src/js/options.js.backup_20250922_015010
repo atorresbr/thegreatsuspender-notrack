@@ -1088,12 +1088,21 @@ function initializeOptionsPage() {
         // Initialize options from storage
         initializeOptions();
         
+        // Setup event listeners
+        setupEventListeners();
+        
         // Initialize switch system
         setupSystemThemeSwitches();
         loadSystemThemeSwitchState();
         
         // Set up theme buttons
         setupThemeButtons();
+        
+        // Initialize tab protection
+        setTimeout(() => {
+            initializeTabProtectionOptions();
+            setupTabProtectionEventListeners();
+        }, 100);
         
         console.log('✅ Options page initialization complete');
     } catch (error) {
@@ -1341,24 +1350,13 @@ console.log('✅ All missing handler functions added - Rule 2 compliant');
  * Description: Handle theme select dropdown changes (Rule 2 - named function)
  * Matches HTML element: <select id="theme">
  */
-function handleThemeSelectChange() {
-    try {
-        const theme = this.value;
-        console.log('Theme changed to:', theme);
-        applyTheme(theme);
-        chrome.storage.sync.set({ theme: theme }, handleThemeSaveComplete);
-    } catch (error) {
-        console.error('Error handling theme select change:', error);
-    }
-}
+
 
 /**
  * Function: handleThemeSaveComplete  
  * Description: Handle theme save completion (Rule 2 - named function)
  */
-function handleThemeSaveComplete() {
-    console.log('✅ Theme saved to storage');
-}
+
 
 /**
  * Function: handleAutoSuspendTimeChange
@@ -1388,115 +1386,65 @@ function handleAutoSuspendTimeSave() {
  * Description: Handle pinned tabs checkbox changes (Rule 2 - named function)
  * Matches HTML element: <input id="dontSuspendPinned">
  */
-function handlePinnedCheckboxChange() {
-    try {
-        const checked = this.checked;
-        console.log('Don\'t suspend pinned tabs changed to:', checked);
-        chrome.storage.sync.set({ pinned: checked }, handlePinnedSaveComplete);
-    } catch (error) {
-        console.error('Error handling pinned checkbox change:', error);
-    }
-}
+
 
 /**
  * Function: handlePinnedSaveComplete
  * Description: Handle pinned setting save completion (Rule 2 - named function)
  */
-function handlePinnedSaveComplete() {
-    console.log('✅ Pinned setting saved to storage');
-}
+
 
 /**
  * Function: handleWhitelistChange
  * Description: Handle whitelist textarea changes (Rule 2 - named function)
  * Matches HTML element: <textarea id="whitelist">
  */
-function handleWhitelistChange() {
-    try {
-        const whitelist = this.value;
-        console.log('Whitelist updated');
-        chrome.storage.sync.set({ whiteList: whitelist }, handleWhitelistSaveComplete);
-    } catch (error) {
-        console.error('Error handling whitelist change:', error);
-    }
-}
+
 
 /**
  * Function: handleWhitelistSaveComplete
  * Description: Handle whitelist save completion (Rule 2 - named function)
  */
-function handleWhitelistSaveComplete() {
-    console.log('✅ Whitelist saved to storage');
-}
+
 
 /**
  * Function: handleNeverSuspendFormsChange
  * Description: Handle never suspend forms checkbox (Rule 2 - named function)
  * Matches HTML element: <input id="neverSuspendForms">
  */
-function handleNeverSuspendFormsChange() {
-    try {
-        const checked = this.checked;
-        console.log('Never suspend forms changed to:', checked);
-        chrome.storage.sync.set({ neverSuspendForms: checked }, handleNeverSuspendFormsSaveComplete);
-    } catch (error) {
-        console.error('Error handling never suspend forms change:', error);
-    }
-}
+
 
 /**
  * Function: handleNeverSuspendFormsSaveComplete
  * Description: Handle never suspend forms save completion (Rule 2 - named function)
  */
-function handleNeverSuspendFormsSaveComplete() {
-    console.log('✅ Never suspend forms setting saved');
-}
+
 
 /**
  * Function: handleSuspendInPlaceChange
  * Description: Handle suspend in place checkbox (Rule 2 - named function)  
  * Matches HTML element: <input id="suspendInPlaceOfDiscard">
  */
-function handleSuspendInPlaceChange() {
-    try {
-        const checked = this.checked;
-        console.log('Suspend in place of discard changed to:', checked);
-        chrome.storage.sync.set({ suspendInPlaceOfDiscard: checked }, handleSuspendInPlaceSaveComplete);
-    } catch (error) {
-        console.error('Error handling suspend in place change:', error);
-    }
-}
+
 
 /**
  * Function: handleSuspendInPlaceSaveComplete
  * Description: Handle suspend in place save completion (Rule 2 - named function)
  */
-function handleSuspendInPlaceSaveComplete() {
-    console.log('✅ Suspend in place setting saved');
-}
+
 
 /**
  * Function: handleDiscardAfterSuspendChange
  * Description: Handle discard after suspend checkbox (Rule 2 - named function)
  * Matches HTML element: <input id="discardAfterSuspend">
  */
-function handleDiscardAfterSuspendChange() {
-    try {
-        const checked = this.checked;
-        console.log('Discard after suspend changed to:', checked);
-        chrome.storage.sync.set({ discardAfterSuspend: checked }, handleDiscardAfterSuspendSaveComplete);
-    } catch (error) {
-        console.error('Error handling discard after suspend change:', error);
-    }
-}
+
 
 /**
  * Function: handleDiscardAfterSuspendSaveComplete
  * Description: Handle discard after suspend save completion (Rule 2 - named function)
  */
-function handleDiscardAfterSuspendSaveComplete() {
-    console.log('✅ Discard after suspend setting saved');
-}
+
 
 /**
  * Function: handleSystemThemeBehaviorChange
@@ -1531,3 +1479,124 @@ function handleStorageSaveComplete() {
 }
 
 console.log('✅ All required named functions added - Rule 2 & 3 compliant');
+
+/**
+ * TAB PROTECTION OPTIONS HANDLERS
+ * Handle tab protection and auto-restore settings
+ */
+
+// Initialize tab protection settings
+function initializeTabProtectionOptions() {
+    console.log('🛡️ Initializing tab protection options...');
+    
+    // Load current settings
+    chrome.storage.local.get(['tabProtection', 'autoRestore'], (result) => {
+        const tabProtection = result.tabProtection !== false; // Default true
+        const autoRestore = result.autoRestore !== false; // Default true
+        
+        // Set checkbox states
+        const tabProtectionCheckbox = document.getElementById('tabProtection');
+        if (tabProtectionCheckbox) {
+            tabProtectionCheckbox.checked = tabProtection;
+        }
+        
+        const autoRestoreCheckbox = document.getElementById('autoRestore');
+        if (autoRestoreCheckbox) {
+            autoRestoreCheckbox.checked = autoRestore;
+        }
+        
+        console.log('✅ Tab protection settings loaded:', { tabProtection, autoRestore });
+    });
+}
+
+// Setup tab protection event listeners
+function setupTabProtectionEventListeners() {
+    console.log('🛡️ Setting up tab protection event listeners...');
+    
+    // Tab Protection checkbox
+    const tabProtectionCheckbox = document.getElementById('tabProtection');
+    if (tabProtectionCheckbox) {
+        tabProtectionCheckbox.addEventListener('change', handleTabProtectionChange);
+        console.log('✅ Tab protection checkbox listener added');
+    }
+    
+    // Auto Restore checkbox  
+    const autoRestoreCheckbox = document.getElementById('autoRestore');
+    if (autoRestoreCheckbox) {
+        autoRestoreCheckbox.addEventListener('change', handleAutoRestoreChange);
+        console.log('✅ Auto restore checkbox listener added');
+    }
+}
+
+// Handle tab protection setting change
+function handleTabProtectionChange() {
+    const enabled = this.checked;
+    console.log('🛡️ Tab protection changed to:', enabled);
+    
+    chrome.storage.local.set({ tabProtection: enabled }, () => {
+        if (chrome.runtime.lastError) {
+            console.error('Error saving tab protection setting:', chrome.runtime.lastError);
+        } else {
+            console.log('✅ Tab protection setting saved:', enabled);
+            
+            // Update TabProtection system if available
+            if (window.TabProtection && window.TabProtection.setProtection) {
+                window.TabProtection.setProtection(enabled);
+            }
+        }
+    });
+}
+
+// Handle auto restore setting change
+function handleAutoRestoreChange() {
+    const enabled = this.checked;
+    console.log('🔄 Auto restore changed to:', enabled);
+    
+    chrome.storage.local.set({ autoRestore: enabled }, () => {
+        if (chrome.runtime.lastError) {
+            console.error('Error saving auto restore setting:', chrome.runtime.lastError);
+        } else {
+            console.log('✅ Auto restore setting saved:', enabled);
+            
+            // Update TabProtection system if available
+            if (window.TabProtection && window.TabProtection.setAutoRestore) {
+                window.TabProtection.setAutoRestore(enabled);
+            }
+        }
+    });
+}
+
+console.log('✅ Tab protection options handlers loaded');
+
+/**
+ * Function: initializeOptionsPage
+ * Description: Initialize options page when DOM is loaded (Rule 2 - named function)
+ */
+function initializeOptionsPage() {
+    try {
+        console.log('Options page DOM loaded');
+        
+        // Initialize options from storage
+        initializeOptions();
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Initialize switch system
+        setupSystemThemeSwitches();
+        loadSystemThemeSwitchState();
+        
+        // Set up theme buttons
+        setupThemeButtons();
+        
+        // Initialize tab protection
+        setTimeout(() => {
+            initializeTabProtectionOptions();
+            setupTabProtectionEventListeners();
+        }, 100);
+        
+        console.log('✅ Options page initialization complete');
+    } catch (error) {
+        console.error('❌ Error initializing options page:', error);
+    }
+}

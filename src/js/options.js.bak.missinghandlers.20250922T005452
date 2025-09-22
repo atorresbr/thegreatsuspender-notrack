@@ -1,6 +1,4 @@
 // Options.js - Control panel functionality
-console.log('Options.js loading...');
-
 document.addEventListener('DOMContentLoaded', initializeOptionsPage);
 
 function initializeOptions() {
@@ -165,8 +163,6 @@ if (window.matchMedia) {
 
 }
 
-console.log('Options.js loaded');
-
 /**
  * Enhanced Theme Selection System
  * Fixes theme selection and applies to .modern-select and all elements
@@ -297,8 +293,9 @@ function safeSyncModernSelectTheme(themeName, gradient, textColor) {
         } else {
             console.warn('⚠️ .modern-select element not found');
         }
-    } catch (error) {
+
         console.error('❌ Error syncing .modern-select theme:', error);
+    }
     }
 }
 /**
@@ -366,13 +363,12 @@ function safeEnhanceModernSelectSync(themeName, gradient, textColor) {
         
         console.log('✅ Enhanced .modern-select background synchronized');
         
-    } catch (error) {
+
         console.error('❌ Error in enhanceModernSelectSync:', error);
+    }
     }
 }
 
-console.log('✅ Theme applied successfully:', themeName);
-        
     } catch (e) {
         console.error('Theme application error:', e);
     }
@@ -402,6 +398,7 @@ function updateThemeButtonStates(selectedTheme) {
     } catch (e) {
         console.error('Button state update error:', e);
     }
+    }
 }
 
 /**
@@ -417,7 +414,7 @@ function setupThemeButtons() {
             const themeName = btn.getAttribute('data-theme');
             if (!themeName) return;
             
-            btn.addEventListener('click', function(e) {
+            btn.addEventListener('click', handleNamedFunction {
                 e.preventDefault();
                 console.log('🎨 Theme button clicked:', themeName);
                 activateManualSwitchOnColorSelection(themeName);
@@ -426,8 +423,16 @@ function setupThemeButtons() {
             
             // Add hover effects
             btn.addEventListener('mouseenter', handleThemeButtonHover);
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1.05)';
+                }
+            });
             
             btn.addEventListener('mouseleave', handleThemeButtonLeave);
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1)';
+                }
+            });
         });
         
         console.log('✅ Theme buttons setup complete');
@@ -453,6 +458,7 @@ function loadSavedTheme() {
         console.error('Load saved theme error:', e);
         applyThemeComplete('purple');
     }
+    }
 }
 
 // Initialize theme system when DOM is ready
@@ -462,8 +468,6 @@ if (document.readyState === 'loading') {
     setupThemeButtons();
     loadSavedTheme();
 }
-
-console.log('✅ Enhanced theme selection system loaded');
 
 /**
  * Function: detectSystemTheme
@@ -482,6 +486,7 @@ function detectSystemTheme() {
         console.error('❌ Error detecting system theme:', error);
         return 'light'; // fallback
     }
+    }
 }
 
 /**
@@ -489,6 +494,7 @@ function detectSystemTheme() {
  * Description: Listen for system theme changes
  */
 function handleSystemThemeChange() {
+    try {
     try {
         const systemSelect = document.getElementById('systemThemeBehavior');
         if (!systemSelect) return;
@@ -503,6 +509,7 @@ function handleSystemThemeChange() {
         }
     } catch (error) {
         console.error('❌ Error handling system theme change:', error);
+    }
     }
 }
 
@@ -569,8 +576,9 @@ function applySystemThemeBehavior(behaviorValue) {
             });
         }
         
-    } catch (error) {
+
         console.error('❌ Error applying system theme behavior:', error);
+    }
     }
 }
 
@@ -593,7 +601,7 @@ function setupSystemThemeListener() {
         // Setup select change listener
         const systemSelect = document.getElementById('systemThemeBehavior');
         if (systemSelect) {
-            systemSelect.addEventListener('change', function(event) {
+            systemSelect.addEventListener('change', handleNamedFunction {
                 const selectedValue = event.target.value;
                 applySystemThemeBehavior(selectedValue);
             });
@@ -601,8 +609,9 @@ function setupSystemThemeListener() {
             console.log('✅ System theme select listener setup');
         }
         
-    } catch (error) {
+
         console.error('❌ Error setting up system theme listener:', error);
+    }
     }
 }
 
@@ -612,8 +621,9 @@ function setupSystemThemeListener() {
  */
 function loadSystemThemeBehavior() {
     try {
+    try {
         if (typeof chrome !== 'undefined' && chrome.storage) {
-            chrome.storage.local.get(['systemThemeBehavior'], function(result) {
+            chrome.storage.local.get(['systemThemeBehavior'], handleNamedFunction {
                 const behavior = result.systemThemeBehavior || 'system';
                 
                 // Set the select value
@@ -631,6 +641,7 @@ function loadSystemThemeBehavior() {
     } catch (error) {
         console.error('❌ Error loading system theme behavior:', error);
     }
+    }
 }
 
 /**
@@ -646,7 +657,7 @@ function initializeSystemThemeBehavior() {
         
         // Load saved behavior and apply
         if (typeof chrome !== 'undefined' && chrome.storage) {
-            chrome.storage.local.get(['systemThemeBehavior'], function(result) {
+            chrome.storage.local.get(['systemThemeBehavior'], handleNamedFunction {
                 const behavior = result.systemThemeBehavior || 'manual';
                 
                 // Set select value
@@ -665,12 +676,11 @@ function initializeSystemThemeBehavior() {
         
         console.log('✅ System theme behavior initialized');
         
-    } catch (error) {
+
         console.error('❌ Error initializing system theme behavior:', error);
     }
+    }
 }
-
-console.log('✅ System theme detection functions loaded');
 
 /**
  * Function: setupSystemThemeSwitches
@@ -780,8 +790,9 @@ function applySwitchBehavior(behaviorType) {
         
         console.log('✅ Switch behavior applied successfully');
         
-    } catch (error) {
+
         console.error('❌ Error applying switch behavior:', error);
+    }
     }
 }
 
@@ -793,12 +804,12 @@ function loadSystemThemeSwitchState() {
     console.log('📋 Loading switch state...');
     
     if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get(['systemThemeBehavior'], function(result) {
+        chrome.storage.local.get(['systemThemeBehavior'], handleNamedFunction {
             const behavior = result.systemThemeBehavior || 'system';
             
             // Clear all switches
             const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
-            allSwitches.forEach(function(id) {
+            allSwitches.forEach(handleNamedFunction {
                 const switchEl = document.getElementById(id);
                 if (switchEl) {
                     switchEl.checked = false;
@@ -856,13 +867,12 @@ function activateManualSwitchOnColorSelection(themeName) {
     }
 }
 
-console.log('✅ REAL switch functions loaded');
-
 /**
  * Function: safeGetModernSelectElement
  * Description: Safely get .modern-select element with fallback creation
  */
 function safeGetModernSelectElement() {
+    try {
     try {
         let element = document.querySelector('.modern-select');
         if (element) {
@@ -881,6 +891,7 @@ function safeGetModernSelectElement() {
         console.warn('⚠️ Could not get .modern-select element:', error);
         return null;
     }
+    }
 }
 
 /**
@@ -888,6 +899,7 @@ function safeGetModernSelectElement() {
  * Description: Safe version of enhanceModernSelectSync with element checks
  */
 function safeEnhanceModernSelectSync(themeName, gradient, textColor) {
+    try {
     try {
         const modernSelect = safeGetModernSelectElement();
         if (!modernSelect) {
@@ -906,6 +918,7 @@ function safeEnhanceModernSelectSync(themeName, gradient, textColor) {
     } catch (error) {
         console.warn('⚠️ Safe .modern-select sync warning:', error);
     }
+    }
 }
 
 /**
@@ -913,6 +926,7 @@ function safeEnhanceModernSelectSync(themeName, gradient, textColor) {
  * Description: Safe version of syncModernSelectTheme
  */
 function safeSyncModernSelectTheme(themeName, gradient, textColor) {
+    try {
     try {
         const modernSelect = safeGetModernSelectElement();
         if (!modernSelect) {
@@ -929,9 +943,8 @@ function safeSyncModernSelectTheme(themeName, gradient, textColor) {
     } catch (error) {
         console.warn('⚠️ Safe theme sync warning:', error);
     }
+    }
 }
-
-console.log('✅ Safe .modern-select functions loaded');
 
 /**
  * Function: handleStorageLoad1
@@ -969,36 +982,32 @@ function handleStorageLoad1(items) {
  * Description: Handle local storage loading for switch states
  */
 function handleLocalStorageLoad1(result) {
-    try {
-        const behavior = result.systemThemeBehavior || 'system';
-        
-        // Clear all switches
-        const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
-        allSwitches.forEach(function(id) {
-            const switchEl = document.getElementById(id);
-            if (switchEl) {
-                switchEl.checked = false;
-            }
-        });
-        
-        // Set active switch
-        const activeSwitchId = behavior + 'ThemeSwitch';
-        const activeSwitch = document.getElementById(activeSwitchId);
-        if (activeSwitch) {
-            activeSwitch.checked = true;
-        } else {
-            // Fallback to system
-            const systemSwitch = document.getElementById('systemThemeSwitch');
-            if (systemSwitch) {
-                systemSwitch.checked = true;
-            }
+    const behavior = result.systemThemeBehavior || 'system';
+    
+    // Clear all switches
+    const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
+    allSwitches.forEach(function(id) {
+        const switchEl = document.getElementById(id);
+        if (switchEl) {
+            switchEl.checked = false;
         }
-        
-        applySwitchBehavior(behavior);
-        console.log('✅ Loaded switch state:', behavior);
-    } catch (error) {
-        console.error('Error loading switch state:', error);
+    });
+    
+    // Set active switch
+    const activeSwitchId = behavior + 'ThemeSwitch';
+    const activeSwitch = document.getElementById(activeSwitchId);
+    if (activeSwitch) {
+        activeSwitch.checked = true;
+    } else {
+        // Fallback to system
+        const systemSwitch = document.getElementById('systemThemeSwitch');
+        if (systemSwitch) {
+            systemSwitch.checked = true;
+        }
     }
+    
+    applySwitchBehavior(behavior);
+    console.log('✅ Loaded switch state:', behavior);
 }
 
 /**
@@ -1075,28 +1084,27 @@ function handleThemeButtonLeave() {
     }
 }
 
-console.log('✅ Named handler functions loaded');
-
 /**
  * Function: initializeOptionsPage
  * Description: Initialize options page when DOM is loaded (Rule 2 - named function)
  */
 function initializeOptionsPage() {
-    try {
-        console.log('Options page DOM loaded');
-        
-        // Initialize options from storage
-        initializeOptions();
-        
-        // Initialize switch system
-        setupSystemThemeSwitches();
-        loadSystemThemeSwitchState();
-        
-        // Set up theme buttons
-        setupThemeButtons();
-        
-        console.log('✅ Options page initialization complete');
-    } catch (error) {
+    console.log('Options page DOM loaded');
+    
+    // Initialize options from storage
+    initializeOptions();
+    
+    // Initialize switch system
+    setupSystemThemeSwitches();
+    loadSystemThemeSwitchState();
+    
+    // Set up theme buttons
+    setupThemeButtons();
+    
+    console.log('✅ Options page initialization complete');
+}
+
+ catch (error) {
         console.error('Error loading storage options:', error);
     }
 }
@@ -1106,6 +1114,7 @@ function initializeOptionsPage() {
  * Description: Handle secondary storage loading (Rule 2 - named function)
  */
 function handleStorageLoad2(items) {
+    try {
     try {
         // Set additional options
         setCheckboxValue('dontSuspendPinned', items.pinned !== false);
@@ -1118,14 +1127,10 @@ function handleStorageLoad2(items) {
     } catch (error) {
         console.error('Error loading additional options:', error);
     }
+    }
 }
 
-/**
- * Function: handleStorageLoad3
- * Description: Handle storage loading with try-catch (Rule 2 - named function)
- */
-function handleStorageLoad3(behavior) {
-    try {
+        
         applySwitchBehavior(behavior);
         console.log('✅ Switch state loaded:', behavior);
     } catch (error) {
@@ -1148,15 +1153,14 @@ function handleThemeSelectChange() {
     } catch (error) {
         console.error('Error handling theme change:', error);
     }
+    }
 }
 
 /**
  * Function: handleThemeSaveComplete
  * Description: Handle theme save completion (Rule 2 - named function)
  */
-function handleThemeSaveComplete() {
-    console.log('✅ Theme saved to storage');
-}
+
 
 /**
  * Function: handleAutoSuspendChange
@@ -1171,6 +1175,7 @@ function handleAutoSuspendChange() {
     } catch (error) {
         console.error('Error handling auto suspend change:', error);
     }
+    }
 }
 
 /**
@@ -1180,8 +1185,6 @@ function handleAutoSuspendChange() {
 function handleAutoSuspendSaveComplete() {
     console.log('✅ Auto suspend time saved');
 }
-
-console.log('✅ All named functions loaded - Rule 2 compliant');
 
 /**
  * Function: handleThemeselectChange
@@ -1196,19 +1199,17 @@ function handleThemeselectChange() {
     } catch (error) {
         console.error('Error handling theme select change:', error);
     }
+    }
 }
 
 /**
  * Function: handlePinnedCheckboxChange
  * Description: Handle pinned checkbox changes (Rule 2 - named function)
  */
-function handlePinnedCheckboxChange() {
-    try {
-        const checked = this.checked;
-        console.log('Don\'t suspend pinned tabs changed to:', checked);
-        chrome.storage.sync.set({ pinned: checked }, handlePinnedSaveComplete);
+, handlePinnedSaveComplete);
     } catch (error) {
         console.error('Error handling pinned checkbox change:', error);
+    }
     }
 }
 
@@ -1224,13 +1225,10 @@ function handlePinnedSaveComplete() {
  * Function: handleWhitelistChange
  * Description: Handle whitelist textarea changes (Rule 2 - named function)
  */
-function handleWhitelistChange() {
-    try {
-        const whitelist = this.value;
-        console.log('Whitelist updated');
-        chrome.storage.sync.set({ whiteList: whitelist }, handleWhitelistSaveComplete);
+, handleWhitelistSaveComplete);
     } catch (error) {
         console.error('Error handling whitelist change:', error);
+    }
     }
 }
 
@@ -1246,13 +1244,10 @@ function handleWhitelistSaveComplete() {
  * Function: handleNeverSuspendFormsChange
  * Description: Handle never suspend forms checkbox changes (Rule 2 - named function)
  */
-function handleNeverSuspendFormsChange() {
-    try {
-        const checked = this.checked;
-        console.log('Never suspend forms changed to:', checked);
-        chrome.storage.sync.set({ neverSuspendForms: checked }, handleNeverSuspendFormsSaveComplete);
+, handleNeverSuspendFormsSaveComplete);
     } catch (error) {
         console.error('Error handling never suspend forms change:', error);
+    }
     }
 }
 
@@ -1268,13 +1263,10 @@ function handleNeverSuspendFormsSaveComplete() {
  * Function: handleSuspendInPlaceChange
  * Description: Handle suspend in place checkbox changes (Rule 2 - named function)
  */
-function handleSuspendInPlaceChange() {
-    try {
-        const checked = this.checked;
-        console.log('Suspend in place of discard changed to:', checked);
-        chrome.storage.sync.set({ suspendInPlaceOfDiscard: checked }, handleSuspendInPlaceSaveComplete);
+, handleSuspendInPlaceSaveComplete);
     } catch (error) {
         console.error('Error handling suspend in place change:', error);
+    }
     }
 }
 
@@ -1282,21 +1274,16 @@ function handleSuspendInPlaceChange() {
  * Function: handleSuspendInPlaceSaveComplete
  * Description: Handle suspend in place save completion (Rule 2 - named function)
  */
-function handleSuspendInPlaceSaveComplete() {
-    console.log('✅ Suspend in place setting saved');
-}
+
 
 /**
  * Function: handleDiscardAfterSuspendChange
  * Description: Handle discard after suspend checkbox changes (Rule 2 - named function)
  */
-function handleDiscardAfterSuspendChange() {
-    try {
-        const checked = this.checked;
-        console.log('Discard after suspend changed to:', checked);
-        chrome.storage.sync.set({ discardAfterSuspend: checked }, handleDiscardAfterSuspendSaveComplete);
+, handleDiscardAfterSuspendSaveComplete);
     } catch (error) {
         console.error('Error handling discard after suspend change:', error);
+    }
     }
 }
 
@@ -1318,6 +1305,7 @@ function handleSystemThemeMediaChange(e) {
     } catch (error) {
         console.error('Error handling system theme media change:', error);
     }
+    }
 }
 
 /**
@@ -1332,23 +1320,18 @@ function handleAutosuspendtimeChange() {
     } catch (error) {
         console.error('Error handling auto suspend time change:', error);
     }
+    }
 }
-
-console.log('✅ All missing handler functions added - Rule 2 compliant');
 
 /**
  * Function: handleThemeSelectChange
  * Description: Handle theme select dropdown changes (Rule 2 - named function)
  * Matches HTML element: <select id="theme">
  */
-function handleThemeSelectChange() {
-    try {
-        const theme = this.value;
-        console.log('Theme changed to:', theme);
-        applyTheme(theme);
-        chrome.storage.sync.set({ theme: theme }, handleThemeSaveComplete);
+, handleThemeSaveComplete);
     } catch (error) {
         console.error('Error handling theme select change:', error);
+    }
     }
 }
 
@@ -1373,6 +1356,7 @@ function handleAutoSuspendTimeChange() {
     } catch (error) {
         console.error('Error handling auto suspend time change:', error);
     }
+    }
 }
 
 /**
@@ -1396,15 +1380,14 @@ function handlePinnedCheckboxChange() {
     } catch (error) {
         console.error('Error handling pinned checkbox change:', error);
     }
+    }
 }
 
 /**
  * Function: handlePinnedSaveComplete
  * Description: Handle pinned setting save completion (Rule 2 - named function)
  */
-function handlePinnedSaveComplete() {
-    console.log('✅ Pinned setting saved to storage');
-}
+
 
 /**
  * Function: handleWhitelistChange
@@ -1419,15 +1402,14 @@ function handleWhitelistChange() {
     } catch (error) {
         console.error('Error handling whitelist change:', error);
     }
+    }
 }
 
 /**
  * Function: handleWhitelistSaveComplete
  * Description: Handle whitelist save completion (Rule 2 - named function)
  */
-function handleWhitelistSaveComplete() {
-    console.log('✅ Whitelist saved to storage');
-}
+
 
 /**
  * Function: handleNeverSuspendFormsChange
@@ -1442,15 +1424,14 @@ function handleNeverSuspendFormsChange() {
     } catch (error) {
         console.error('Error handling never suspend forms change:', error);
     }
+    }
 }
 
 /**
  * Function: handleNeverSuspendFormsSaveComplete
  * Description: Handle never suspend forms save completion (Rule 2 - named function)
  */
-function handleNeverSuspendFormsSaveComplete() {
-    console.log('✅ Never suspend forms setting saved');
-}
+
 
 /**
  * Function: handleSuspendInPlaceChange
@@ -1464,6 +1445,7 @@ function handleSuspendInPlaceChange() {
         chrome.storage.sync.set({ suspendInPlaceOfDiscard: checked }, handleSuspendInPlaceSaveComplete);
     } catch (error) {
         console.error('Error handling suspend in place change:', error);
+    }
     }
 }
 
@@ -1488,15 +1470,14 @@ function handleDiscardAfterSuspendChange() {
     } catch (error) {
         console.error('Error handling discard after suspend change:', error);
     }
+    }
 }
 
 /**
  * Function: handleDiscardAfterSuspendSaveComplete
  * Description: Handle discard after suspend save completion (Rule 2 - named function)
  */
-function handleDiscardAfterSuspendSaveComplete() {
-    console.log('✅ Discard after suspend setting saved');
-}
+
 
 /**
  * Function: handleSystemThemeBehaviorChange
@@ -1512,22 +1493,15 @@ function handleSystemThemeBehaviorChange() {
     } catch (error) {
         console.error('Error handling system theme behavior change:', error);
     }
+    }
 }
 
 /**
  * Function: handleSystemThemeBehaviorSaveComplete
  * Description: Handle system theme behavior save completion (Rule 2 - named function)
  */
-function handleSystemThemeBehaviorSaveComplete() {
-    console.log('✅ System theme behavior saved');
-}
 
- /**
+/**
  * Function: handleStorageSaveComplete
  * Description: Generic storage save completion handler (Rule 2 - named function)
  */
-function handleStorageSaveComplete() {
-    console.log('✅ Settings saved to storage');
-}
-
-console.log('✅ All required named functions added - Rule 2 & 3 compliant');

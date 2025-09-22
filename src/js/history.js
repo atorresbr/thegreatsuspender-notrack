@@ -68,7 +68,7 @@
     var sessionContentsEl = element.getElementsByClassName(
       'sessionContents'
     )[0];
-    var sessionIcon = element.getElementsByClassName('sessionIcon')[0];
+    var sessionIcon = element.getElementsByClassName('content')[0];
     if (sessionIcon.classList.contains('icon-plus-squared-alt')) {
       sessionIcon.classList.remove('icon-plus-squared-alt');
       sessionIcon.classList.add('icon-minus-squared-alt');
@@ -125,43 +125,43 @@
     var sessionEl = historyItems.createSessionHtml(session, true);
 
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('sessionIcon')[0],
+      sessionEl.getElementsByClassName('content')[0],
       function() {
         toggleSession(sessionEl, session.sessionId); //async. unhandled promise
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('sessionLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         toggleSession(sessionEl, session.sessionId); //async. unhandled promise
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('exportLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         historyUtils.exportSessionWithId(session.sessionId);
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('resuspendLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         reloadTabs(session.sessionId, null, true); // async
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('reloadLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         reloadTabs(session.sessionId, null, false); // async
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('saveLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         historyUtils.saveSession(session.sessionId);
       }
     );
     addClickListenerToElement(
-      sessionEl.getElementsByClassName('deleteLink')[0],
+      sessionEl.getElementsByClassName('btn')[0],
       function() {
         deleteSession(session.sessionId);
       }
@@ -174,13 +174,13 @@
     var windowEl = historyItems.createWindowHtml(window, index, allowReload);
 
     addClickListenerToElement(
-      windowEl.getElementsByClassName('resuspendLink')[0],
+      windowEl.getElementsByClassName('btn')[0],
       function() {
         reloadTabs(session.sessionId, window.id, true); // async
       }
     );
     addClickListenerToElement(
-      windowEl.getElementsByClassName('reloadLink')[0],
+      windowEl.getElementsByClassName('btn')[0],
       function() {
         reloadTabs(session.sessionId, window.id, false); // async
       }
@@ -193,7 +193,7 @@
     var tabEl = await historyItems.createTabHtml(tab, allowDelete);
 
     addClickListenerToElement(
-      tabEl.getElementsByClassName('removeLink')[0],
+      tabEl.getElementsByClassName('btn')[0],
       function() {
         removeTab(tabEl, session.sessionId, window.id, tab.id);
       }
@@ -202,9 +202,9 @@
   }
 
   function render() {
-    var currentDiv = document.getElementById('currentSessions'),
-      sessionsDiv = document.getElementById('recoverySessions'),
-      historyDiv = document.getElementById('historySessions'),
+    var currentDiv = document.getElementById('importSession'),
+      sessionsDiv = document.getElementById('migrateTabs'),
+      historyDiv = document.getElementById('importSessionAction'),
       importSessionEl = document.getElementById('importSession'),
       importSessionActionEl = document.getElementById('importSessionAction'),
       firstSession = true;
@@ -265,3 +265,72 @@
   });
 
 })(this);
+
+// Event delegation for handling data-action attributes (replaces inline onclick)
+function setupEventDelegation() {
+    document.addEventListener('click', function(event) {
+        let target = event.target;
+        while (target && target !== document.body) {
+            if (target.hasAttribute('data-action')) {
+                const action = target.getAttribute('data-action');
+                try {
+                    // Execute the action using Function constructor
+                    const func = new Function(action);
+                    func.call(target, event);
+                } catch (error) {
+                    console.error('Error executing data-action:', action, error);
+                }
+                event.preventDefault();
+                break;
+            }
+            target = target.parentNode;
+        }
+    });
+
+    // Handle change events for data-change attributes
+    document.addEventListener('change', function(event) {
+        let target = event.target;
+        if (target.hasAttribute('data-change')) {
+            const action = target.getAttribute('data-change');
+            try {
+                const func = new Function(action);
+                func.call(target, event);
+            } catch (error) {
+                console.error('Error executing data-change:', action, error);
+            }
+        }
+    });
+
+    // Handle other event types
+    const eventTypes = ['submit', 'keyup', 'keydown', 'load'];
+    const dataAttributes = ['data-submit', 'data-keyup', 'data-keydown', 'data-load'];
+    
+    eventTypes.forEach((type, index) => {
+        document.addEventListener(type, function(event) {
+            let target = event.target;
+            if (type === 'load' && target === document) return; // Skip document load
+            
+            while (target && target !== document.body) {
+                if (target.hasAttribute(dataAttributes[index])) {
+                    const action = target.getAttribute(dataAttributes[index]);
+                    try {
+                        const func = new Function(action);
+                        func.call(target, event);
+                    } catch (error) {
+                        console.error(`Error executing ${dataAttributes[index]}:`, action, error);
+                    }
+                    if (type === 'submit') {
+                        event.preventDefault();
+                    }
+                    break;
+                }
+                target = target.parentNode;
+            }
+        });
+    });
+}
+
+// Initialize event delegation on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setupEventDelegation();
+});

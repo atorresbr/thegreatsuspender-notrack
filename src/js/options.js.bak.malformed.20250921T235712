@@ -95,14 +95,26 @@ function setupThemeSelector() {
 function setupAutoSuspendTime() {
     const autoSuspendTime = document.getElementById('timeToSuspend');
     if (autoSuspendTime) {
-        autoSuspendTime.addEventListener('change', handleAutoSuspendTimeChange);
+        autoSuspendTime.addEventListener('change', function() {
+            const time = parseInt(this.value) || 60;
+            console.log('Auto-suspend time changed to:', time);
+            
+            chrome.storage.sync.set({ autoSuspendTime: time }, function() {
+           autoSuspendTime.addEventListener('change', handleAutosuspendtimeChange);
+        });
     }
 }
 
 function setupPinnedCheckbox() {
     const pinnedCheckbox = document.getElementById('dontSuspendPinned');
     if (pinnedCheckbox) {
-        pinnedCheckbox.addEventListener('change', handlePinnedCheckboxChange);
+        pinnedCheckbox.addEventListener('change', function() {
+            const checked = this.checked;
+            console.log('Don\'t suspend pinned tabs changed to:', checked);
+            
+            chrome.storage.sync.set({ pinned: checked }, function() {
+            pinnedCheckbox.addEventListener('change', handlePinnedcheckboxChange);
+        });
     }
 }
 
@@ -162,7 +174,7 @@ function applyTheme(theme) {
 if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeMediaChange);
         chrome.storage.sync.get(['theme'], handleStorageLoad1);
-
+    });
 }
 
 console.log('Options.js loaded');
@@ -425,9 +437,17 @@ function setupThemeButtons() {
             });
             
             // Add hover effects
-            btn.addEventListener('mouseenter', handleThemeButtonHover);
+            btn.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1.05)';
+                }
+            });
             
-            btn.addEventListener('mouseleave', handleThemeButtonLeave);
+            btn.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1)';
+                }
+            });
         });
         
         console.log('✅ Theme buttons setup complete');
@@ -632,6 +652,7 @@ function loadSystemThemeBehavior() {
         console.error('❌ Error loading system theme behavior:', error);
     }
 }
+
 
 /**
  * Function: initializeSystemThemeBehavior
@@ -969,36 +990,32 @@ function handleStorageLoad1(items) {
  * Description: Handle local storage loading for switch states
  */
 function handleLocalStorageLoad1(result) {
-    try {
-        const behavior = result.systemThemeBehavior || 'system';
-        
-        // Clear all switches
-        const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
-        allSwitches.forEach(function(id) {
-            const switchEl = document.getElementById(id);
-            if (switchEl) {
-                switchEl.checked = false;
-            }
-        });
-        
-        // Set active switch
-        const activeSwitchId = behavior + 'ThemeSwitch';
-        const activeSwitch = document.getElementById(activeSwitchId);
-        if (activeSwitch) {
-            activeSwitch.checked = true;
-        } else {
-            // Fallback to system
-            const systemSwitch = document.getElementById('systemThemeSwitch');
-            if (systemSwitch) {
-                systemSwitch.checked = true;
-            }
+    const behavior = result.systemThemeBehavior || 'system';
+    
+    // Clear all switches
+    const allSwitches = ['manualThemeSwitch', 'lightThemeSwitch', 'darkThemeSwitch', 'systemThemeSwitch'];
+    allSwitches.forEach(function(id) {
+        const switchEl = document.getElementById(id);
+        if (switchEl) {
+            switchEl.checked = false;
         }
-        
-        applySwitchBehavior(behavior);
-        console.log('✅ Loaded switch state:', behavior);
-    } catch (error) {
-        console.error('Error loading switch state:', error);
+    });
+    
+    // Set active switch
+    const activeSwitchId = behavior + 'ThemeSwitch';
+    const activeSwitch = document.getElementById(activeSwitchId);
+    if (activeSwitch) {
+        activeSwitch.checked = true;
+    } else {
+        // Fallback to system
+        const systemSwitch = document.getElementById('systemThemeSwitch');
+        if (systemSwitch) {
+            systemSwitch.checked = true;
+        }
     }
+    
+    applySwitchBehavior(behavior);
+    console.log('✅ Loaded switch state:', behavior);
 }
 
 /**
@@ -1082,21 +1099,22 @@ console.log('✅ Named handler functions loaded');
  * Description: Initialize options page when DOM is loaded (Rule 2 - named function)
  */
 function initializeOptionsPage() {
-    try {
-        console.log('Options page DOM loaded');
-        
-        // Initialize options from storage
-        initializeOptions();
-        
-        // Initialize switch system
-        setupSystemThemeSwitches();
-        loadSystemThemeSwitchState();
-        
-        // Set up theme buttons
-        setupThemeButtons();
-        
-        console.log('✅ Options page initialization complete');
-    } catch (error) {
+    console.log('Options page DOM loaded');
+    
+    // Initialize options from storage
+    initializeOptions();
+    
+    // Initialize switch system
+    setupSystemThemeSwitches();
+    loadSystemThemeSwitchState();
+    
+    // Set up theme buttons
+    setupThemeButtons();
+    
+    console.log('✅ Options page initialization complete');
+}
+
+ catch (error) {
         console.error('Error loading storage options:', error);
     }
 }
@@ -1120,12 +1138,8 @@ function handleStorageLoad2(items) {
     }
 }
 
-/**
- * Function: handleStorageLoad3
- * Description: Handle storage loading with try-catch (Rule 2 - named function)
- */
-function handleStorageLoad3(behavior) {
-    try {
+
+        
         applySwitchBehavior(behavior);
         console.log('✅ Switch state loaded:', behavior);
     } catch (error) {
@@ -1335,199 +1349,3 @@ function handleAutosuspendtimeChange() {
 }
 
 console.log('✅ All missing handler functions added - Rule 2 compliant');
-
-/**
- * Function: handleThemeSelectChange
- * Description: Handle theme select dropdown changes (Rule 2 - named function)
- * Matches HTML element: <select id="theme">
- */
-function handleThemeSelectChange() {
-    try {
-        const theme = this.value;
-        console.log('Theme changed to:', theme);
-        applyTheme(theme);
-        chrome.storage.sync.set({ theme: theme }, handleThemeSaveComplete);
-    } catch (error) {
-        console.error('Error handling theme select change:', error);
-    }
-}
-
-/**
- * Function: handleThemeSaveComplete  
- * Description: Handle theme save completion (Rule 2 - named function)
- */
-function handleThemeSaveComplete() {
-    console.log('✅ Theme saved to storage');
-}
-
-/**
- * Function: handleAutoSuspendTimeChange
- * Description: Handle auto suspend time input changes (Rule 2 - named function)
- * Matches HTML element: <input id="timeToSuspend">
- */
-function handleAutoSuspendTimeChange() {
-    try {
-        const time = parseInt(this.value) || 60;
-        console.log('Auto-suspend time changed to:', time);
-        chrome.storage.sync.set({ autoSuspendTime: time }, handleAutoSuspendTimeSave);
-    } catch (error) {
-        console.error('Error handling auto suspend time change:', error);
-    }
-}
-
-/**
- * Function: handleAutoSuspendTimeSave
- * Description: Handle auto suspend time save completion (Rule 2 - named function)
- */
-function handleAutoSuspendTimeSave() {
-    console.log('✅ Auto suspend time saved to storage');
-}
-
-/**
- * Function: handlePinnedCheckboxChange
- * Description: Handle pinned tabs checkbox changes (Rule 2 - named function)
- * Matches HTML element: <input id="dontSuspendPinned">
- */
-function handlePinnedCheckboxChange() {
-    try {
-        const checked = this.checked;
-        console.log('Don\'t suspend pinned tabs changed to:', checked);
-        chrome.storage.sync.set({ pinned: checked }, handlePinnedSaveComplete);
-    } catch (error) {
-        console.error('Error handling pinned checkbox change:', error);
-    }
-}
-
-/**
- * Function: handlePinnedSaveComplete
- * Description: Handle pinned setting save completion (Rule 2 - named function)
- */
-function handlePinnedSaveComplete() {
-    console.log('✅ Pinned setting saved to storage');
-}
-
-/**
- * Function: handleWhitelistChange
- * Description: Handle whitelist textarea changes (Rule 2 - named function)
- * Matches HTML element: <textarea id="whitelist">
- */
-function handleWhitelistChange() {
-    try {
-        const whitelist = this.value;
-        console.log('Whitelist updated');
-        chrome.storage.sync.set({ whiteList: whitelist }, handleWhitelistSaveComplete);
-    } catch (error) {
-        console.error('Error handling whitelist change:', error);
-    }
-}
-
-/**
- * Function: handleWhitelistSaveComplete
- * Description: Handle whitelist save completion (Rule 2 - named function)
- */
-function handleWhitelistSaveComplete() {
-    console.log('✅ Whitelist saved to storage');
-}
-
-/**
- * Function: handleNeverSuspendFormsChange
- * Description: Handle never suspend forms checkbox (Rule 2 - named function)
- * Matches HTML element: <input id="neverSuspendForms">
- */
-function handleNeverSuspendFormsChange() {
-    try {
-        const checked = this.checked;
-        console.log('Never suspend forms changed to:', checked);
-        chrome.storage.sync.set({ neverSuspendForms: checked }, handleNeverSuspendFormsSaveComplete);
-    } catch (error) {
-        console.error('Error handling never suspend forms change:', error);
-    }
-}
-
-/**
- * Function: handleNeverSuspendFormsSaveComplete
- * Description: Handle never suspend forms save completion (Rule 2 - named function)
- */
-function handleNeverSuspendFormsSaveComplete() {
-    console.log('✅ Never suspend forms setting saved');
-}
-
-/**
- * Function: handleSuspendInPlaceChange
- * Description: Handle suspend in place checkbox (Rule 2 - named function)  
- * Matches HTML element: <input id="suspendInPlaceOfDiscard">
- */
-function handleSuspendInPlaceChange() {
-    try {
-        const checked = this.checked;
-        console.log('Suspend in place of discard changed to:', checked);
-        chrome.storage.sync.set({ suspendInPlaceOfDiscard: checked }, handleSuspendInPlaceSaveComplete);
-    } catch (error) {
-        console.error('Error handling suspend in place change:', error);
-    }
-}
-
-/**
- * Function: handleSuspendInPlaceSaveComplete
- * Description: Handle suspend in place save completion (Rule 2 - named function)
- */
-function handleSuspendInPlaceSaveComplete() {
-    console.log('✅ Suspend in place setting saved');
-}
-
-/**
- * Function: handleDiscardAfterSuspendChange
- * Description: Handle discard after suspend checkbox (Rule 2 - named function)
- * Matches HTML element: <input id="discardAfterSuspend">
- */
-function handleDiscardAfterSuspendChange() {
-    try {
-        const checked = this.checked;
-        console.log('Discard after suspend changed to:', checked);
-        chrome.storage.sync.set({ discardAfterSuspend: checked }, handleDiscardAfterSuspendSaveComplete);
-    } catch (error) {
-        console.error('Error handling discard after suspend change:', error);
-    }
-}
-
-/**
- * Function: handleDiscardAfterSuspendSaveComplete
- * Description: Handle discard after suspend save completion (Rule 2 - named function)
- */
-function handleDiscardAfterSuspendSaveComplete() {
-    console.log('✅ Discard after suspend setting saved');
-}
-
-/**
- * Function: handleSystemThemeBehaviorChange
- * Description: Handle system theme behavior select changes (Rule 2 - named function)
- * Matches HTML element: <select id="systemThemeBehavior">
- */
-function handleSystemThemeBehaviorChange() {
-    try {
-        const behavior = this.value;
-        console.log('System theme behavior changed to:', behavior);
-        chrome.storage.local.set({ systemThemeBehavior: behavior }, handleSystemThemeBehaviorSaveComplete);
-        applySwitchBehavior(behavior);
-    } catch (error) {
-        console.error('Error handling system theme behavior change:', error);
-    }
-}
-
-/**
- * Function: handleSystemThemeBehaviorSaveComplete
- * Description: Handle system theme behavior save completion (Rule 2 - named function)
- */
-function handleSystemThemeBehaviorSaveComplete() {
-    console.log('✅ System theme behavior saved');
-}
-
- /**
- * Function: handleStorageSaveComplete
- * Description: Generic storage save completion handler (Rule 2 - named function)
- */
-function handleStorageSaveComplete() {
-    console.log('✅ Settings saved to storage');
-}
-
-console.log('✅ All required named functions added - Rule 2 & 3 compliant');

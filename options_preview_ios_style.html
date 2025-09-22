@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Great Suspender - iOS Style Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, 
+                rgba(255, 182, 193, 0.3) 0%,   /* Light pink */
+                rgba(255, 105, 180, 0.4) 25%,  /* Hot pink */
+                rgba(186, 85, 211, 0.5) 50%,   /* Medium orchid */
+                rgba(147, 112, 219, 0.6) 75%,  /* Medium purple */
+                rgba(255, 255, 255, 0.8) 100%  /* White */
+            );
+            background-attachment: fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .app-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            color: #666;
+            font-weight: 400;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            padding: 20px 20px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 20px;
+        }
+
+        .theme-btn {
+            height: 60px;
+            border-radius: 15px;
+            border: 3px solid transparent;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-btn.selected {
+            border-color: #007AFF;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+        }
+
+        .theme-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .switch-group {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .switch-group:last-child {
+            border-bottom: none;
+        }
+
+        .switch-info {
+            flex: 1;
+        }
+
+        .switch-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .switch-subtitle {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        .ios-switch {
+            position: relative;
+            width: 51px;
+            height: 31px;
+            background: #e5e5ea;
+            border-radius: 31px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ios-switch.active {
+            background: #34c759;
+        }
+
+        .ios-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 27px;
+            height: 27px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .ios-switch.active::before {
+            transform: translateX(20px);
+        }
+
+        .control-section {
+            padding: 20px;
+        }
+
+        .control-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            border-radius: 15px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .control-btn.primary {
+            background: #007AFF;
+            color: white;
+        }
+
+        .control-btn.primary:hover {
+            background: #0056d6;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active { background: #34c759; }
+        .status-inactive { background: #ff3b30; }
+
+        .preview-note {
+            background: rgba(255, 193, 7, 0.15);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .preview-note h3 {
+            color: #f57c00;
+            margin-bottom: 10px;
+        }
+
+        .preview-note p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="preview-note">
+            <h3>📱 iOS/Android Style Preview</h3>
+            <p>This is how your options page will look with the new design. Check it out before applying!</p>
+        </div>
+
+        <div class="app-header">
+            <div class="app-icon">⚡</div>
+            <h1 class="app-title">Great Suspender</h1>
+            <p class="app-subtitle">Tab Management & Themes</p>
+        </div>
+
+        <!-- Beautiful Themes Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    🎨 Beautiful Themes
+                </div>
+                <div class="card-subtitle">Choose your perfect color scheme</div>
+            </div>
+            <div class="theme-grid">
+                <div class="theme-btn selected" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="theme-name">💜 Purple Dream</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #667db6 0%, #0082c8 100%);">
+                    <div class="theme-name">🌊 Ocean Breeze</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                    <div class="theme-name">🌅 Sunset Glow</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);">
+                    <div class="theme-name">🌲 Forest Deep</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                    <div class="theme-name">🔥 Fire Passion</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                    <div class="theme-name">💐 Lavender Field</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
+                    <div class="theme-name">🌑 Dark Mode</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #0f0f23 0%, #2d1b69 100%);">
+                    <div class="theme-name">🌃 Midnight Sky</div>
+                </div>
+                <div class="theme-btn" style="background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);">
+                    <div class="theme-name">🌌 Aurora Lights</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Theme Behavior Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    🌗 System Theme Behavior
+                </div>
+                <div class="card-subtitle">Choose how themes respond to your system</div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Manual Theme Selection</div>
+                    <div class="switch-subtitle">Use theme buttons above to select manually</div>
+                </div>
+                <div class="ios-switch active" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Follow System Dark/Light</div>
+                    <div class="switch-subtitle">Automatically match system appearance</div>
+                </div>
+                <div class="ios-switch" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Always Light Theme</div>
+                    <div class="switch-subtitle">Force light colors regardless of system</div>
+                </div>
+                <div class="ios-switch" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Always Dark Theme</div>
+                    <div class="switch-subtitle">Force dark colors regardless of system</div>
+                </div>
+                <div class="ios-switch" onclick="toggleSwitch(this)"></div>
+            </div>
+        </div>
+
+        <!-- Tab Protection Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    🛡️ Tab Protection
+                </div>
+                <div class="card-subtitle">Keep your suspended tabs safe</div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Keep tabs when extension reloads</div>
+                    <div class="switch-subtitle">Prevent suspended tabs from closing</div>
+                </div>
+                <div class="ios-switch active" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="switch-group">
+                <div class="switch-info">
+                    <div class="switch-title">Auto-restore tabs on startup</div>
+                    <div class="switch-subtitle">Restore suspended tabs after browser restart</div>
+                </div>
+                <div class="ios-switch active" onclick="toggleSwitch(this)"></div>
+            </div>
+        </div>
+
+        <!-- Controls Card -->
+        <div class="card">
+            <div class="control-section">
+                <button class="control-btn primary">💾 Backup Current Session</button>
+                <button class="control-btn">📂 Import Session</button>
+                <button class="control-btn">🔄 Restore by Session ID</button>
+                <button class="control-btn">⚙️ Advanced Settings</button>
+            </div>
+        </div>
+
+        <!-- Status Card -->
+        <div class="card">
+            <div class="control-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: 500; color: #333;">Extension Status</span>
+                    <span class="status-indicator status-active"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #666;">Suspended Tabs</span>
+                    <span style="font-weight: 600; color: #007AFF;">12</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #666;">Memory Saved</span>
+                    <span style="font-weight: 600; color: #34c759;">2.1 GB</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSwitch(element) {
+            element.classList.toggle('active');
+        }
+
+        // Theme button functionality
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+    </script>
+</body>
+</html>
