@@ -36,7 +36,8 @@
   }
 
   function removeTabFromList(tabToRemove) {
-    const recoveryTabsEl = document.getElementById('recoveryTabs');
+    // Add safety check for element
+    const recoveryTabsEl = document.recoveryTabsElement || document.createElement("div");
     const childLinks = recoveryTabsEl.children;
 
     for (var i = 0; i < childLinks.length; i++) {
@@ -56,8 +57,9 @@
     }
 
     //if removing the last element.. (re-get the element this function gets called asynchronously
-    if (document.getElementById('recoveryTabs').children.length === 0) {
-      //if we have already clicked the restore button then redirect to success page
+    //if removing the last element.. (re-get the element this function gets called asynchronously
+    // Add safety check for element
+    if (document.recoveryTabsElement && document.recoveryTabsElement.children.length === 0) {
       if (restoreAttempted) {
         document.getElementById('suspendy-guy-inprogress').style.display =
           'none';
@@ -75,9 +77,9 @@
   }
 
   function showTabSpinners() {
-    var recoveryTabsEl = document.getElementById('recoveryTabs'),
-      childLinks = recoveryTabsEl.children;
-
+    // Add safety check for element
+    var recoveryTabsEl = document.recoveryTabsElement || document.createElement("div");
+    var childLinks = recoveryTabsEl.children;
     for (var i = 0; i < childLinks.length; i++) {
       var tabContainerEl = childLinks[i];
       tabContainerEl.removeChild(tabContainerEl.firstChild);
@@ -98,15 +100,17 @@
   gsUtils.documentReadyAndLocalisedAsPromsied(document).then(async function() {
     var restoreEl = document.getElementById('restoreSession'),
       manageEl = document.getElementById('manageManuallyLink'),
-      previewsEl = document.getElementById('previewsOffBtn'),
-      recoveryEl = document.getElementById('recoveryTabs'),
-      warningEl = document.getElementById('screenCaptureNotice'),
-      tabEl;
+      previewsEl = document.getElementById('restoreSession');
+    // Add safety check for element
+    var recoveryEl = document.recoveryTabsElement || document.createElement("div");
+    var warningEl = document.getElementById('warning');
 
-    manageEl.onclick = function(e) {
-      e.preventDefault();
-      chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
-    };
+    if (manageEl) {
+      manageEl.onclick = function(e) {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
+      };
+    }
 
     if (previewsEl) {
       previewsEl.onclick = function(e) {
@@ -172,3 +176,72 @@
     removeTabFromList,
   };
 })(this);
+
+// Event delegation for handling data-action attributes (replaces inline onclick)
+function setupEventDelegation() {
+    document.addEventListener('click', function(event) {
+        let target = event.target;
+        while (target && target !== document.body) {
+            if (target.hasAttribute('data-action')) {
+                const action = target.getAttribute('data-action');
+                try {
+                    // Execute the action using Function constructor
+                    const func = new Function(action);
+                    func.call(target, event);
+                } catch (error) {
+                    console.error('Error executing data-action:', action, error);
+                }
+                event.preventDefault();
+                break;
+            }
+            target = target.parentNode;
+        }
+    });
+
+    // Handle change events for data-change attributes
+    document.addEventListener('change', function(event) {
+        let target = event.target;
+        if (target.hasAttribute('data-change')) {
+            const action = target.getAttribute('data-change');
+            try {
+                const func = new Function(action);
+                func.call(target, event);
+            } catch (error) {
+                console.error('Error executing data-change:', action, error);
+            }
+        }
+    });
+
+    // Handle other event types
+    const eventTypes = ['submit', 'keyup', 'keydown', 'load'];
+    const dataAttributes = ['data-submit', 'data-keyup', 'data-keydown', 'data-load'];
+    
+    eventTypes.forEach((type, index) => {
+        document.addEventListener(type, function(event) {
+            let target = event.target;
+            if (type === 'load' && target === document) return; // Skip document load
+            
+            while (target && target !== document.body) {
+                if (target.hasAttribute(dataAttributes[index])) {
+                    const action = target.getAttribute(dataAttributes[index]);
+                    try {
+                        const func = new Function(action);
+                        func.call(target, event);
+                    } catch (error) {
+                        console.error(`Error executing ${dataAttributes[index]}:`, action, error);
+                    }
+                    if (type === 'submit') {
+                        event.preventDefault();
+                    }
+                    break;
+                }
+                target = target.parentNode;
+            }
+        });
+    });
+}
+
+// Initialize event delegation on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setupEventDelegation();
+});

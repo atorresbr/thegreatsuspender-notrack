@@ -18,12 +18,12 @@ async function initializeServiceWorker() {
         
         const defaults = {
             extensionEnabled: true,
-            selectedTheme: 'purple',
+            selectedTheme: "purple",
             tabProtection: true,
             autoRestore: true,
-            systemThemeBehavior: 'manual',
+            systemThemeBehavior: "manual",
             suspendAfter: 60
-            }
+        };
         
         for (const [key, value] of Object.entries(defaults)) {
             try {
@@ -467,19 +467,19 @@ function handleMessage(request, sender, sendResponse) {
             
         // Original tab management functions
         case 'suspendTab':
-            suspendTab(request.tabId || sender.tab?.id).then((result) => {
+            suspendTab(request.tabId || sender.tab && sender.tab.id).then((result) => {
                 sendResponse(result);
             });
             return true;
             
         case 'unsuspendTab':
-            unsuspendTab(request.tabId || sender.tab?.id).then((result) => {
+            unsuspendTab(request.tabId || sender.tab && sender.tab.id).then((result) => {
                 sendResponse(result);
             });
             return true;
             
         case 'suspendOtherTabs':
-            suspendOtherTabs(request.activeTabId || sender.tab?.id).then((result) => {
+            suspendOtherTabs(request.activeTabId || sender.tab && sender.tab.id).then((result) => {
                 sendResponse(result);
             });
             return true;
@@ -654,6 +654,10 @@ async function getTabInfo(tabId) {
 // Context menu setup
 // Context menu setup with duplicate prevention
 async function setupContextMenu() {
+    if (contextMenusCreated) {
+        console.log("Context menus already created, skipping...");
+        return Promise.resolve();
+    }
     return new Promise((resolve) => {
         // Always remove all existing context menus first
         chrome.contextMenus.removeAll(() => {

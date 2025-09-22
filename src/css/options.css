@@ -37,11 +37,11 @@ body {
 /* ALL 18 BEAUTIFUL THEME GRADIENTS */
 body.theme-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 body.theme-ocean { background: linear-gradient(135deg, #667db6 0%, #0082c8 100%); }
-body.theme-sunset { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+body.theme-sunset { background: linear-gradient(135deg, #ff9a9e 0%, #b31280 100%); }
 body.theme-forest { background: linear-gradient(135deg, #134e5e 0%, #71b280 100%); }
-body.theme-fire { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }
+body.theme-fire { background: linear-gradient(135deg, rgb(71 8 22) 0%, rgb(201 35 6) 100%); }
 body.theme-lavender { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
-body.theme-cosmic { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+body.theme-cosmic { background: linear-gradient(135deg, rgb(167 102 234) 0%, rgb(17 2 33) 100%); }
 body.theme-emerald { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
 body.theme-rose { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 body.theme-sky { background: linear-gradient(135deg, #74b9ff 0%, #0084e3 100%); }

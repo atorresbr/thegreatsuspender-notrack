@@ -224,36 +224,5 @@
     <script src="js/export.js"></script>
     <script src="js/exportTabs.js"></script>
     <script src="js/options.js"></script>
-
-<!-- Missing form elements added to match JS references -->
-<div id="missing-elements" style="display: none;">
-    <select id="theme">
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-    </select>
-    
-    <input type="number" id="timeToSuspend" value="60" min="1" max="999">
-    
-    <input type="checkbox" id="dontSuspendPinned">
-    
-    <textarea id="whitelist" placeholder="Whitelist URLs"></textarea>
-    
-    <input type="checkbox" id="neverSuspendForms">
-    
-    <input type="checkbox" id="suspendInPlaceOfDiscard">
-    
-    <input type="checkbox" id="discardAfterSuspend">
-    
-    <select id="systemThemeBehavior">
-        <option value="system">System</option>
-        <option value="manual">Manual</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-    </select>
-</div>
-
-    <script src="js/tabProtection.js"></script>
-    <script src="js/sessionRestoration.js"></script>
 </body>
 </html>
