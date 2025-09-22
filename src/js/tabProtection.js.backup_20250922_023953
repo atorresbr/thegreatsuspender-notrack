@@ -7,8 +7,8 @@
 console.log('🛡️ Tab Protection System loading...');
 
 // Global variables
-var protectionEnabled = true;
-var autoRestoreEnabled = true;
+let protectionEnabled = true;
+let autoRestoreEnabled = true;
 let suspendedTabsMap = new Map();
 
 /**
@@ -157,7 +157,9 @@ function extractSessionId(suspendedUrl) {
     }
     
     try {
+        const urlParts = suspendedUrl.split('?');
         if (urlParts.length > 1) {
+            const params = new URLSearchParams(urlParts[1]);
             return params.get('sessionId') || 'unknown';
         }
     } catch (error) {
@@ -202,6 +204,7 @@ function unprotectTab(tabId) {
         chrome.storage.local.get(['protectedTabs'], handleUnprotectTabLoad);
         
         function handleUnprotectTabLoad(result) {
+            const protectedTabs = result.protectedTabs || {};
             delete protectedTabs[tabId];
             chrome.storage.local.set({ protectedTabs: protectedTabs });
             console.log('🗑️ Unprotected tab:', tabId);
@@ -238,6 +241,7 @@ function restoreProtectedTabs() {
  * Description: Handle loading tabs for restoration (Rule 2 - named function)
  */
 function handleRestoreTabsLoad(result) {
+    const protectedTabs = result.protectedTabs || {};
     const tabsToRestore = Object.values(protectedTabs);
     
     if (tabsToRestore.length === 0) {

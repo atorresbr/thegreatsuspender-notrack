@@ -8,6 +8,8 @@ console.log('📋 Options.js loading...');
 
 // Global variables
 let currentTheme = 'purple';
+let protectionEnabled = true;
+let autoRestoreEnabled = true;
 
 /**
  * Function: initializeOptionsPage
