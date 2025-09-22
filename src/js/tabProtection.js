@@ -1,373 +1,195 @@
 /**
- * TAB PROTECTION SYSTEM - WORKING VERSION
+ * TAB PROTECTION SYSTEM
  * Prevents suspended tabs from closing on extension reload/removal
- * Rule 2: All named functions only
  */
+(function() {
+  'use strict';
 
-console.log('🛡️ Tab Protection System loading...');
+  console.log('Tab Protection System initializing...');
 
-// Global variables
-var protectionEnabled = true;
-var autoRestoreEnabled = true;
-let suspendedTabsMap = new Map();
+  let protectionEnabled = true;
+  let autoRestoreEnabled = true;
+  let suspendedTabs = new Map();
 
-/**
- * Function: initializeTabProtection
- * Description: Initialize tab protection system (Rule 2 - named function)
- */
-function initializeTabProtection() {
-    console.log('🛡️ Initializing tab protection...');
-    
-    loadProtectionSettings();
-    setupTabMonitoring();
-    scheduleTabRestoration();
-    
-    console.log('✅ Tab protection initialized');
-}
-
-/**
- * Function: loadProtectionSettings
- * Description: Load protection settings from storage (Rule 2 - named function)
- */
-function loadProtectionSettings() {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get(['tabProtection', 'autoRestore'], handleProtectionSettingsLoad);
-    }
-}
-
-/**
- * Function: handleProtectionSettingsLoad
- * Description: Handle loaded protection settings (Rule 2 - named function)
- */
-function handleProtectionSettingsLoad(result) {
-    protectionEnabled = result.tabProtection !== false;
-    autoRestoreEnabled = result.autoRestore !== false;
-    
-    console.log('🛡️ Protection settings loaded:', {
-        protectionEnabled: protectionEnabled,
-        autoRestoreEnabled: autoRestoreEnabled
+  // Get protection settings
+  function getProtectionSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['tabProtection', 'autoRestore'], (result) => {
+        protectionEnabled = result.tabProtection !== false;
+        autoRestoreEnabled = result.autoRestore !== false;
+        resolve({ protectionEnabled, autoRestoreEnabled });
+      });
     });
-}
+  }
 
-/**
- * Function: setupTabMonitoring
- * Description: Setup tab monitoring for protection (Rule 2 - named function)
- */
-function setupTabMonitoring() {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-        chrome.tabs.onUpdated.addListener(handleTabUpdate);
-        chrome.tabs.onRemoved.addListener(handleTabRemoval);
-        
-        console.log('✅ Tab monitoring setup complete');
+  // Track suspended tabs
+  function trackSuspendedTab(tabId, tabInfo) {
+    if (protectionEnabled) {
+      suspendedTabs.set(tabId, {
+        ...tabInfo,
+        protected: true,
+        timestamp: Date.now()
+      });
+      
+      // Store in persistent storage
+      chrome.storage.local.get(['protectedTabs'], (result) => {
+        const protectedTabs = result.protectedTabs || {};
+        protectedTabs[tabId] = suspendedTabs.get(tabId);
+        chrome.storage.local.set({ protectedTabs: protectedTabs });
+      });
+      
+      console.log('🛡️ Protected suspended tab:', tabId, tabInfo.title);
     }
-}
+  }
 
-/**
- * Function: handleTabUpdate
- * Description: Handle tab updates to track suspended tabs (Rule 2 - named function)
- */
-function handleTabUpdate(tabId, changeInfo, tab) {
-    if (!protectionEnabled) return;
+  // Remove tab from protection
+  function unprotectTab(tabId) {
+    suspendedTabs.delete(tabId);
     
-    if (changeInfo.status === 'complete' && isSuspendedTab(tab.url)) {
-        protectSuspendedTab(tabId, tab);
-    }
-}
+    chrome.storage.local.get(['protectedTabs'], (result) => {
+      const protectedTabs = result.protectedTabs || {};
+      delete protectedTabs[tabId];
+      chrome.storage.local.set({ protectedTabs: protectedTabs });
+    });
+  }
 
-/**
- * Function: handleTabRemoval
- * Description: Handle tab removal events (Rule 2 - named function)
- */
-function handleTabRemoval(tabId, removeInfo) {
-    // Only unprotect if window is not closing (manual tab close)
-    if (!removeInfo.isWindowClosing) {
-        setTimeout(function() {
-            unprotectTab(tabId);
-        }, 1000);
-    }
-}
-
-/**
- * Function: isSuspendedTab
- * Description: Check if tab URL is a suspended tab (Rule 2 - named function)
- */
-function isSuspendedTab(url) {
-    if (!url) return false;
+  // Restore protected tabs after extension reload
+  function restoreProtectedTabs() {
+    if (!autoRestoreEnabled) return;
     
-    return url.includes('suspended.html') || 
-           (url.includes('chrome-extension://') && url.includes('suspended'));
-}
-
-/**
- * Function: protectSuspendedTab
- * Description: Protect a suspended tab from closing (Rule 2 - named function)
- */
-function protectSuspendedTab(tabId, tabInfo) {
-    const suspendedTabData = {
-        id: tabId,
-        title: tabInfo.title || 'Suspended Tab',
-        url: tabInfo.url,
-        originalUrl: extractOriginalUrl(tabInfo.url),
-        sessionId: extractSessionId(tabInfo.url),
-        favIconUrl: tabInfo.favIconUrl,
-        pinned: tabInfo.pinned || false,
-        windowId: tabInfo.windowId,
-        index: tabInfo.index,
-        timestamp: Date.now(),
-        protected: true
-    };
-    
-    suspendedTabsMap.set(tabId, suspendedTabData);
-    
-    // Store in persistent storage
-    saveSuspendedTabData(suspendedTabData);
-    
-    console.log('🛡️ Protected suspended tab:', tabId, suspendedTabData.title);
-}
-
-/**
- * Function: extractOriginalUrl
- * Description: Extract original URL from suspended tab (Rule 2 - named function)
- */
-function extractOriginalUrl(suspendedUrl) {
-    if (!suspendedUrl || !suspendedUrl.includes('suspended.html')) {
-        return suspendedUrl;
-    }
-    
-    try {
-        const urlParts = suspendedUrl.split('?');
-        if (urlParts.length > 1) {
-            const params = new URLSearchParams(urlParts[1]);
-            return params.get('uri') || params.get('url') || params.get('originalUrl') || suspendedUrl;
-        }
-    } catch (error) {
-        console.warn('Error extracting original URL:', error);
-    }
-    
-    return suspendedUrl;
-}
-
-/**
- * Function: extractSessionId
- * Description: Extract session ID from suspended tab (Rule 2 - named function)
- */
-function extractSessionId(suspendedUrl) {
-    if (!suspendedUrl || !suspendedUrl.includes('suspended.html')) {
-        return 'unknown';
-    }
-    
-    try {
-        if (urlParts.length > 1) {
-            return params.get('sessionId') || 'unknown';
-        }
-    } catch (error) {
-        console.warn('Error extracting session ID:', error);
-    }
-    
-    return 'unknown';
-}
-
-/**
- * Function: saveSuspendedTabData
- * Description: Save suspended tab data to persistent storage (Rule 2 - named function)
- */
-function saveSuspendedTabData(tabData) {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get(['protectedTabs'], handleProtectedTabsLoad);
-        
-        function handleProtectedTabsLoad(result) {
-            const protectedTabs = result.protectedTabs || {};
-            protectedTabs[tabData.id] = tabData;
-            
-            chrome.storage.local.set({
-                protectedTabs: protectedTabs,
-                lastProtectionUpdate: Date.now()
-            }, handleTabDataSaveComplete);
-        }
-        
-        function handleTabDataSaveComplete() {
-            console.log('💾 Saved tab protection data for tab:', tabData.id);
-        }
-    }
-}
-
-/**
- * Function: unprotectTab
- * Description: Remove tab from protection (Rule 2 - named function)
- */
-function unprotectTab(tabId) {
-    suspendedTabsMap.delete(tabId);
-    
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get(['protectedTabs'], handleUnprotectTabLoad);
-        
-        function handleUnprotectTabLoad(result) {
-            delete protectedTabs[tabId];
-            chrome.storage.local.set({ protectedTabs: protectedTabs });
-            console.log('🗑️ Unprotected tab:', tabId);
-        }
-    }
-}
-
-/**
- * Function: scheduleTabRestoration
- * Description: Schedule tab restoration for startup (Rule 2 - named function)
- */
-function scheduleTabRestoration() {
-    if (!autoRestoreEnabled) {
-        console.log('🔄 Auto-restore disabled');
-        return;
-    }
-    
-    // Delay restoration to allow extension to fully load
-    setTimeout(restoreProtectedTabs, 3000);
-}
-
-/**
- * Function: restoreProtectedTabs
- * Description: Restore all protected suspended tabs (Rule 2 - named function)
- */
-function restoreProtectedTabs() {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.get(['protectedTabs'], handleRestoreTabsLoad);
-    }
-}
-
-/**
- * Function: handleRestoreTabsLoad
- * Description: Handle loading tabs for restoration (Rule 2 - named function)
- */
-function handleRestoreTabsLoad(result) {
-    const tabsToRestore = Object.values(protectedTabs);
-    
-    if (tabsToRestore.length === 0) {
-        console.log('🔄 No protected tabs to restore');
-        return;
-    }
-    
-    console.log('🔄 Restoring', tabsToRestore.length, 'protected suspended tabs...');
-    
-    // Check current tabs to avoid duplicates
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-        chrome.tabs.query({}, handleCurrentTabsQuery);
-        
-        function handleCurrentTabsQuery(currentTabs) {
-            const currentUrls = currentTabs.map(function(tab) {
-                return tab.url;
-            });
-            
-            tabsToRestore.forEach(function(tabInfo, index) {
-                if (currentUrls.includes(tabInfo.url)) {
-                    console.log('⏭️ Skipping - tab already exists:', tabInfo.title);
-                    return;
-                }
-                
-                setTimeout(function() {
-                    restoreSingleTab(tabInfo);
-                }, index * 100);
-            });
-            
-            // Clean up old protection data after restoration
-            setTimeout(cleanupOldProtectionData, tabsToRestore.length * 100 + 2000);
-        }
-    }
-}
-
-/**
- * Function: restoreSingleTab
- * Description: Restore a single suspended tab (Rule 2 - named function)
- */
-function restoreSingleTab(tabInfo) {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-        const restoreUrl = tabInfo.url; // Keep as suspended tab
-        
-        chrome.tabs.create({
+    chrome.storage.local.get(['protectedTabs'], (result) => {
+      const protectedTabs = result.protectedTabs || {};
+      const tabsToRestore = Object.entries(protectedTabs);
+      
+      if (tabsToRestore.length === 0) return;
+      
+      console.log('🔄 Restoring', tabsToRestore.length, 'protected tabs...');
+      
+      tabsToRestore.forEach(([tabId, tabInfo], index) => {
+        setTimeout(() => {
+          const restoreUrl = tabInfo.suspendedUrl || tabInfo.originalUrl || 'chrome://newtab/';
+          
+          chrome.tabs.create({
             url: restoreUrl,
             active: false,
             pinned: tabInfo.pinned || false
-        }, handleTabRestoreComplete);
-        
-        function handleTabRestoreComplete(newTab) {
-            if (chrome.runtime.lastError) {
-                console.warn('❌ Error restoring tab:', chrome.runtime.lastError.message);
-            } else {
-                console.log('✅ Restored suspended tab:', newTab.id, tabInfo.title);
-                protectSuspendedTab(newTab.id, tabInfo);
+          }, (newTab) => {
+            if (!chrome.runtime.lastError) {
+              console.log('✅ Restored protected tab:', newTab.id, tabInfo.title);
+              
+              // Track the restored tab
+              trackSuspendedTab(newTab.id, {
+                ...tabInfo,
+                id: newTab.id,
+                restored: true
+              });
             }
-        }
-    }
-}
-
-/**
- * Function: cleanupOldProtectionData
- * Description: Clean up old protection data (Rule 2 - named function)
- */
-function cleanupOldProtectionData() {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        console.log('🧹 Cleaning up old protection data');
+          });
+        }, index * 100);
+      });
+      
+      // Clear old protected tabs after restoration
+      setTimeout(() => {
         chrome.storage.local.set({ protectedTabs: {} });
+      }, tabsToRestore.length * 100 + 1000);
+    });
+  }
+
+  // Monitor tab updates for suspended tabs
+  function setupTabMonitoring() {
+    // Track new suspended tabs
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete' && isSuspendedTab(tab.url)) {
+        const tabInfo = {
+          id: tabId,
+          title: tab.title,
+          originalUrl: extractOriginalUrl(tab.url),
+          suspendedUrl: tab.url,
+          favIconUrl: tab.favIconUrl,
+          pinned: tab.pinned,
+          windowId: tab.windowId,
+          index: tab.index
+        };
+        
+        trackSuspendedTab(tabId, tabInfo);
+      }
+    });
+
+    // Remove from protection when tab is closed normally
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      unprotectTab(tabId);
+    });
+  }
+
+  // Check if URL is a suspended tab
+  function isSuspendedTab(url) {
+    return url && (
+      url.includes('suspended.html') ||
+      url.includes('suspended_tab') ||
+      (url.includes('chrome-extension://') && url.includes('suspended'))
+    );
+  }
+
+  // Extract original URL from suspended tab
+  function extractOriginalUrl(suspendedUrl) {
+    if (!suspendedUrl || !isSuspendedTab(suspendedUrl)) return suspendedUrl;
+    
+    try {
+      const urlParams = new URLSearchParams(suspendedUrl.split('?')[1] || '');
+      return urlParams.get('url') || urlParams.get('uri') || suspendedUrl;
+    } catch (error) {
+      return suspendedUrl;
     }
-}
+  }
 
-/**
- * Function: setTabProtection
- * Description: Enable/disable tab protection (Rule 2 - named function)
- */
-function setTabProtection(enabled) {
-    protectionEnabled = enabled;
-    
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.set({ tabProtection: enabled }, handleProtectionSettingSave);
+  // Public API
+  const TabProtection = {
+    async init() {
+      await getProtectionSettings();
+      setupTabMonitoring();
+      
+      // Restore tabs on startup if enabled
+      if (autoRestoreEnabled) {
+        setTimeout(restoreProtectedTabs, 2000);
+      }
+      
+      console.log('🛡️ Tab Protection initialized - Protection:', protectionEnabled, 'AutoRestore:', autoRestoreEnabled);
+    },
+
+    setProtection(enabled) {
+      protectionEnabled = enabled;
+      chrome.storage.local.set({ tabProtection: enabled });
+      console.log('🛡️ Tab protection', enabled ? 'enabled' : 'disabled');
+    },
+
+    setAutoRestore(enabled) {
+      autoRestoreEnabled = enabled;
+      chrome.storage.local.set({ autoRestore: enabled });
+      console.log('🔄 Auto-restore', enabled ? 'enabled' : 'disabled');
+    },
+
+    getProtectedTabsCount() {
+      return suspendedTabs.size;
+    },
+
+    async getProtectedTabs() {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(['protectedTabs'], (result) => {
+          resolve(result.protectedTabs || {});
+        });
+      });
+    },
+
+    restoreAllProtectedTabs() {
+      restoreProtectedTabs();
     }
-    
-    console.log('🛡️ Tab protection', enabled ? 'enabled' : 'disabled');
-    
-    function handleProtectionSettingSave() {
-        console.log('💾 Tab protection setting saved');
-    }
-}
+  };
 
-/**
- * Function: setAutoRestore
- * Description: Enable/disable auto-restore (Rule 2 - named function)
- */
-function setAutoRestore(enabled) {
-    autoRestoreEnabled = enabled;
-    
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.set({ autoRestore: enabled }, handleAutoRestoreSettingSave);
-    }
-    
-    console.log('🔄 Auto-restore', enabled ? 'enabled' : 'disabled');
-    
-    function handleAutoRestoreSettingSave() {
-        console.log('💾 Auto-restore setting saved');
-    }
-}
+  // Export globally
+  window.TabProtection = TabProtection;
 
-/**
- * Function: getProtectedTabsCount
- * Description: Get count of protected tabs (Rule 2 - named function)
- */
-function getProtectedTabsCount() {
-    return suspendedTabsMap.size;
-}
+  // Auto-initialize
+  TabProtection.init();
 
-// Initialize when script loads
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeTabProtection);
-} else {
-    initializeTabProtection();
-}
-
-// Export functions globally for options page
-if (typeof window !== 'undefined') {
-    window.TabProtection = {
-        setProtection: setTabProtection,
-        setAutoRestore: setAutoRestore,
-        getProtectedTabsCount: getProtectedTabsCount,
-        restoreAllProtectedTabs: restoreProtectedTabs
-    };
-}
-
-console.log('✅ Tab Protection System loaded - Rule 2 compliant');
+  console.log('🛡️ Tab Protection System ready!');
+})();

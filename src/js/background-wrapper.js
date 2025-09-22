@@ -651,42 +651,27 @@ async function getTabInfo(tabId) {
     }
 }
 
-// Context menu setup
-// Context menu setup with duplicate prevention
+// Context menu setup - CLEAN VERSION
 async function setupContextMenu() {
     if (contextMenusCreated) {
         console.log("Context menus already created, skipping...");
         return Promise.resolve();
     }
-    // Prevent concurrent context menu creation
+    
     if (globalThis.gsContextMenuCreationInProgress) {
         console.log("⚠️ Context menu creation already in progress, skipping...");
         return Promise.resolve();
     }
+    
     globalThis.gsContextMenuCreationInProgress = true;
-    // Prevent concurrent context menu creation
-    if (globalThis.gsContextMenuCreationInProgress) {
-        console.log("⚠️ Context menu creation already in progress, skipping...");
-        return Promise.resolve();
-    }
-    globalThis.gsContextMenuCreationInProgress = true;
-    // Prevent concurrent context menu creation
-    if (globalThis.gsContextMenuCreationInProgress) {
-        console.log("⚠️ Context menu creation already in progress, skipping...");
-        return Promise.resolve();
-    }
-    globalThis.gsContextMenuCreationInProgress = true;
+    
     return new Promise((resolve) => {
-        // Always remove all existing context menus first
         chrome.contextMenus.removeAll(() => {
             if (chrome.runtime.lastError) {
                 console.warn("Context menu removeAll warning:", chrome.runtime.lastError.message);
                 globalThis.gsContextMenuCreationInProgress = false;
                 resolve();
-                globalThis.gsContextMenuCreationInProgress = false;
-                resolve();
-                globalThis.gsContextMenuCreationInProgress = false;
-                resolve();
+                return;
             }
             
             const menuItems = [
@@ -698,39 +683,11 @@ async function setupContextMenu() {
             let itemsCreated = 0;
             const totalItems = menuItems.length;
             
-            // Add small delay to ensure removeAll completes
             setTimeout(() => {
                 menuItems.forEach((item) => {
                     chrome.contextMenus.create(item, () => {
                         if (chrome.runtime.lastError) {
                             console.warn(`Context menu creation error for ${item.id}:`, chrome.runtime.lastError.message);
-                            // If creation fails, still count it to avoid hanging
-                            itemsCreated++;
-                            if (itemsCreated === totalItems) {
-                                globalThis.gsContextMenuCreationInProgress = false;
-                                contextMenusCreated = true;
-                                resolve();
-                            }
-                            return;
-                            // If creation fails, still count it to avoid hanging
-                            itemsCreated++;
-                            if (itemsCreated === totalItems) {
-                                globalThis.gsContextMenuCreationInProgress = false;
-                                contextMenusCreated = true;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                                resolve();
-                            }
-                            return;
-                            // If creation fails, still count it to avoid hanging
-                            itemsCreated++;
-                            if (itemsCreated === totalItems) {
-                                globalThis.gsContextMenuCreationInProgress = false;
-                                contextMenusCreated = true;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                                resolve();
-                            }
-                            return;
                         } else {
                             console.log(`✅ Created context menu: ${item.id}`);
                         }
@@ -739,16 +696,13 @@ async function setupContextMenu() {
                         if (itemsCreated === totalItems) {
                             contextMenusCreated = true;
                             globalThis.gsContextMenuCreationInProgress = false;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                            globalThis.gsContextMenuCreationInProgress = false;
                             console.log("✅ All context menus created successfully");
                             resolve();
                         }
                     });
                 });
-            }, 100); // 100ms delay
+            }, 100);
             
-            // Safety timeout to prevent hanging
             setTimeout(() => {
                 if (globalThis.gsContextMenuCreationInProgress) {
                     console.warn("⚠️ Context menu creation timeout, forcing completion");
@@ -756,30 +710,7 @@ async function setupContextMenu() {
                     contextMenusCreated = true;
                     resolve();
                 }
-            }, 5000); // 5 second timeout
-            
-            // Safety timeout to prevent hanging
-            setTimeout(() => {
-                if (globalThis.gsContextMenuCreationInProgress) {
-                    console.warn("⚠️ Context menu creation timeout, forcing completion");
-                    globalThis.gsContextMenuCreationInProgress = false;
-                    contextMenusCreated = true;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                    resolve();
-                }
-            }, 5000); // 5 second timeout
-            
-            // Safety timeout to prevent hanging
-            setTimeout(() => {
-                if (globalThis.gsContextMenuCreationInProgress) {
-                    console.warn("⚠️ Context menu creation timeout, forcing completion");
-                    globalThis.gsContextMenuCreationInProgress = false;
-                    contextMenusCreated = true;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                            globalThis.gsContextMenuCreationInProgress = false;
-                    resolve();
-                }
-            }, 5000); // 5 second timeout
+            }, 5000);
         });
     });
 }
@@ -866,100 +797,3 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 initializeServiceWorker();
-<<<<<<< HEAD
-=======
-
-// Enhanced Tab Protection Integration
-console.log('🛡️ Integrating Enhanced Tab Protection...');
-
-// Track suspended tabs for protection
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url && tab.url.includes('suspended.html')) {
-        // This is a suspended tab - protect it
-        console.log('🛡️ Protecting suspended tab:', tabId, tab.title);
-        
-        const tabInfo = {
-            id: tabId,
-            title: tab.title,
-            url: tab.url,
-            originalUrl: extractOriginalUrlFromSuspended(tab.url),
-            sessionId: extractSessionIdFromSuspended(tab.url),
-            favIconUrl: tab.favIconUrl,
-            pinned: tab.pinned,
-            windowId: tab.windowId,
-            index: tab.index,
-            timestamp: Date.now(),
-            protected: true
-        };
-        
-        // Store in protection system
-        const result = await chrome.storage.local.get(['protectedTabs']);
-        const protectedTabs = result.protectedTabs || {};
-        protectedTabs[tabId] = tabInfo;
-        
-        await chrome.storage.local.set({ 
-            protectedTabs: protectedTabs,
-            lastProtectionUpdate: Date.now()
-        });
-        
-        console.log('✅ Tab protected:', tabId);
-    }
-});
-
-// Helper functions for URL extraction
-function extractOriginalUrlFromSuspended(suspendedUrl) {
-    try {
-        const urlParams = new URLSearchParams(suspendedUrl.split('?')[1] || '');
-        return urlParams.get('uri') || urlParams.get('url') || suspendedUrl;
-    } catch (error) {
-        return suspendedUrl;
-    }
-}
-
-function extractSessionIdFromSuspended(suspendedUrl) {
-    try {
-        const urlParams = new URLSearchParams(suspendedUrl.split('?')[1] || '');
-        return urlParams.get('sessionId') || 'unknown';
-    } catch (error) {
-        return 'unknown';
-    }
-}
-
-// Auto-restore on extension startup
-chrome.runtime.onStartup.addListener(async () => {
-    console.log('🔄 Extension startup - checking for tabs to restore...');
-    
-    // Small delay to let extension fully initialize
-    setTimeout(async () => {
-        const settings = await chrome.storage.local.get(['autoRestore']);
-        if (settings.autoRestore !== false) {
-            console.log('🔄 Auto-restore enabled, restoring protected tabs...');
-            
-            if (window.TabProtection && window.TabProtection.restoreAllProtectedTabs) {
-                window.TabProtection.restoreAllProtectedTabs();
-            } else {
-                // Fallback restoration
-                const result = await chrome.storage.local.get(['protectedTabs']);
-                const protectedTabs = result.protectedTabs || {};
-                const tabsToRestore = Object.values(protectedTabs);
-                
-                if (tabsToRestore.length > 0) {
-                    console.log('🔄 Fallback restore:', tabsToRestore.length, 'tabs');
-                    
-                    tabsToRestore.forEach((tabInfo, index) => {
-                        setTimeout(() => {
-                            chrome.tabs.create({
-                                url: tabInfo.url, // Keep as suspended
-                                active: false,
-                                pinned: tabInfo.pinned || false
-                            });
-                        }, index * 100);
-                    });
-                }
-            }
-        }
-    }, 3000);
-});
-
-console.log('✅ Enhanced Tab Protection integration complete');
->>>>>>> 6f7e0069b3234b9835b3c5e6fec4fbd500216f53

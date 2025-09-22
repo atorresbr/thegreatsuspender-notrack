@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     updateCurrentSessionId();
                 } else {
                     console.error('❌ Backup failed:', response);
-                    alert(`❌ Failed to backup tabs: ${response.error || 'Unknown error'}`);
+                    alert(`❌ Failed to backup tabs: ${response?.error || 'Unknown error'}`);
                 }
             });
         });
@@ -130,7 +130,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     updateBackupsList();
                 } else {
                     console.error('❌ New session failed:', response);
-                    alert(`❌ Failed to create new session: ${response.error || 'Unknown error'}`);
+                    alert(`❌ Failed to create new session: ${response?.error || 'Unknown error'}`);
                 }
             });
         });
@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (response && response.success) {
                         alert(`✅ Restored ${response.restored} tabs from session: ${response.sessionId}`);
                     } else {
-                        alert(`❌ Failed to restore session: ${response.error || 'Session not found'}`);
+                        alert(`❌ Failed to restore session: ${response?.error || 'Session not found'}`);
                     }
                 });
             } else {
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                     </div>
                                     <div style="margin-bottom: 4px;">
                                         <span style="color: rgba(255, 255, 255, 0.6);">📊 Tabs:</span> 
-                                        <span style="color: #4CAF50; font-weight: 500;">${backup.count || backup.tabs.length || 0}</span>
+                                        <span style="color: #4CAF50; font-weight: 500;">${backup.count || backup.tabs?.length || 0}</span>
                                         <span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">(includes suspended tabs)</span>
                                     </div>
                                     <div style="margin-bottom: 0;">
@@ -373,7 +373,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (response && response.success) {
                         alert(`✅ Restored ${response.restored} tabs from backup session: ${sessionId}`);
                     } else {
-                        alert(`❌ Failed to restore backup: ${response.error || 'Unknown error'}`);
+                        alert(`❌ Failed to restore backup: ${response?.error || 'Unknown error'}`);
                     }
                 });
             }
@@ -397,7 +397,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         alert(`✅ Backup "${backupName}" deleted successfully.`);
                         updateBackupsList(); // Refresh the list
                     } else {
-                        alert(`❌ Failed to delete backup: ${response.error || 'Unknown error'}`);
+                        alert(`❌ Failed to delete backup: ${response?.error || 'Unknown error'}`);
                         target.disabled = false;
                         target.style.opacity = '1';
                     }
